@@ -1,0 +1,481 @@
+import { useEffect, useState, Suspense, lazy } from 'react';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Sparkles } from 'lucide-react';
+import { Button, Card, Pill } from '../components/ui/primitives';
+import { DepositSlider } from '../components/forms/DepositSlider';
+import { formatNaira } from '../lib/money';
+import { asoEbiProject, demoFeedback } from '../data/demoData';
+import { useLenisScroll } from '../hooks/useLenisScroll';
+import { useGsapReveal } from '../hooks/useGsapReveal';
+import { useScrollProgress } from '../hooks/useScrollProgress';
+import {
+  calculateDepositImpact,
+  calculateExpectedProfit,
+  recommendMinimumSafeDeposit,
+} from '../lib/finance';
+
+const HeroScene = lazy(() => import('../components/landing/HeroScene').then((m) => ({ default: m.HeroScene })));
+
+export function LandingPage() {
+  useLenisScroll();
+
+  return (
+    <div className="bg-bone-50 text-ink-900">
+      <TopBar />
+      <OpeningScene />
+      <ProblemScene />
+      <IntroScene />
+      <InteractiveDemo />
+      <UserVoices />
+      <TrustSection />
+      <PricingSection />
+      <FinalCTA />
+      <Footer />
+    </div>
+  );
+}
+
+function TopBar() {
+  return (
+    <header className="sticky top-0 z-20 flex items-center justify-between border-b border-ink-900/5 bg-bone-50/80 px-5 py-4 backdrop-blur sm:px-8">
+      <span className="font-display text-xl italic">CREW</span>
+      <div className="flex items-center gap-2">
+        <Link to="/demo" className="hidden text-sm font-medium text-ink-700 hover:text-ink-900 sm:inline">
+          Explore the demo
+        </Link>
+        <Link to="/app">
+          <Button className="!px-4 !py-2 text-sm">Open workspace</Button>
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Scene 1 — cinematic opening. GSAP + ScrollTrigger drives every reveal;
+// Lenis (mounted once in LandingPage) smooths the scroll it's tied to.
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Scene 1 — cinematic opening. Text beats are the same 5 beats the R3F
+// scene animates against; both read the same scroll-progress value (see
+// useScrollProgress) so they can never drift out of lockstep.
+// ---------------------------------------------------------------------------
+
+const BEAT_TEXTS = [
+  { text: 'You got the job.', range: [0, 0.2] as const },
+  { text: 'You bought the materials.', range: [0.2, 0.45] as const },
+  { text: 'You paid the tailor.', range: [0.45, 0.65] as const },
+  { text: 'You delivered.', range: [0.65, 0.8] as const },
+  { text: 'But where did the money go?', range: [0.8, 1] as const, big: true, holdAtEnd: true },
+];
+
+function beatOpacity(progress: number, [start, end]: readonly [number, number], holdAtEnd = false) {
+  const fadeInEnd = start + (end - start) * 0.3;
+  const fadeOutStart = end - (end - start) * 0.2;
+  if (progress < start) return 0;
+  if (progress < fadeInEnd) return (progress - start) / (fadeInEnd - start);
+  if (progress < fadeOutStart) return 1;
+  if (progress < end) return holdAtEnd ? 1 : 1 - (progress - fadeOutStart) / (end - fadeOutStart);
+  return holdAtEnd ? 1 : 0;
+}
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReduced(query.matches);
+    const listener = () => setReduced(query.matches);
+    query.addEventListener('change', listener);
+    return () => query.removeEventListener('change', listener);
+  }, []);
+  return reduced;
+}
+
+function OpeningScene() {
+  const reducedMotion = usePrefersReducedMotion();
+  return reducedMotion ? <StaticOpeningScene /> : <PinnedOpeningScene />;
+}
+
+/** Reduced-motion / no-3D fallback: the original simple stacked-reveal version, no pinning or scene. */
+function StaticOpeningScene() {
+  const ref = useGsapReveal<HTMLDivElement>({ stagger: 0.12, y: 14 });
+  return (
+    <section className="mx-auto flex min-h-[80vh] max-w-3xl flex-col justify-center px-6 py-24 sm:px-8" ref={ref}>
+      <div className="space-y-3">
+        {BEAT_TEXTS.slice(0, 4).map((beat) => (
+          <p key={beat.text} data-reveal className="font-display text-2xl text-ink-500 sm:text-3xl">
+            {beat.text}
+          </p>
+        ))}
+      </div>
+      <p data-reveal className="mt-8 font-display text-4xl leading-tight text-ink-900 sm:text-6xl">
+        {BEAT_TEXTS[4].text}
+      </p>
+    </section>
+  );
+}
+
+/** Full cinematic version: a pinned tall section, scroll-scrubbed, with the procedural R3F scene behind the text. */
+function PinnedOpeningScene() {
+  const { containerRef, progress } = useScrollProgress<HTMLDivElement>();
+
+  return (
+    <section ref={containerRef} className="relative" style={{ height: '400vh' }}>
+      <div className="sticky top-0 flex h-screen items-center justify-center overflow-hidden">
+        <div className="pointer-events-none absolute inset-0">
+          <Suspense fallback={null}>
+            <HeroScene progress={progress} />
+          </Suspense>
+        </div>
+
+        <div className="relative z-10 mx-auto max-w-3xl px-6 text-center sm:px-8">
+          {BEAT_TEXTS.map((beat) => (
+            <p
+              key={beat.text}
+              className={
+                beat.big
+                  ? 'absolute inset-x-0 font-display text-4xl leading-tight text-ink-900 sm:text-6xl'
+                  : 'absolute inset-x-0 font-display text-2xl text-ink-500 sm:text-3xl'
+              }
+              style={{ opacity: beatOpacity(progress, beat.range, beat.holdAtEnd) }}
+            >
+              {beat.text}
+            </p>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProblemScene() {
+  const ref = useGsapReveal<HTMLDivElement>({ stagger: 0.1, y: 16 });
+  const costs = asoEbiProject.costs;
+  const revenue = asoEbiProject.revenue;
+  const impact = calculateDepositImpact(costs, revenue, asoEbiProject.depositPct, asoEbiProject.expectedPaymentDays);
+
+  const rows = [
+    { label: 'Revenue', value: revenue, positive: true },
+    ...costs.map((c) => ({ label: c.label, value: -c.amount, positive: false })),
+  ];
+
+  return (
+    <section className="border-t border-ink-900/5 bg-ink-950 px-6 py-24 text-bone-50 sm:px-8" ref={ref}>
+      <div className="mx-auto max-w-2xl">
+        <p data-reveal className="mb-8 text-sm font-medium uppercase tracking-wide text-bone-200/50">
+          The Aso-ebi order
+        </p>
+
+        <div className="space-y-3 border-t border-white/10 pt-6">
+          {rows.map((row) => (
+            <div key={row.label} data-reveal className="flex items-center justify-between border-b border-white/5 pb-3">
+              <span className="text-bone-200/80">{row.label}</span>
+              <span className={`num text-lg ${row.positive ? 'text-verified-100' : 'text-bone-200/70'}`}>
+                {row.positive ? formatNaira(row.value) : `-${formatNaira(Math.abs(row.value))}`}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div data-reveal className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <Metric label="Upfront exposure" value={formatNaira(impact.upfrontExposure)} accent />
+          <Metric label="Client payment" value={`${asoEbiProject.expectedPaymentDays} days`} />
+          <Metric label="Projected cash gap" value={formatNaira(impact.cashGap)} accent />
+        </div>
+
+        <div data-reveal className="mt-14 font-display text-3xl leading-snug sm:text-4xl">
+          The project was profitable.
+          <br />
+          <span className="text-bone-200/60">The problem was getting there.</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Metric({ label, value, accent = false }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="text-xs text-bone-200/50">{label}</div>
+      <div className={`num mt-1 text-xl font-medium ${accent ? 'text-gold-500' : 'text-bone-50'}`}>{value}</div>
+    </div>
+  );
+}
+
+function IntroScene() {
+  const ref = useGsapReveal<HTMLDivElement>();
+  return (
+    <section className="bg-ink-950 px-6 pb-28 pt-4 text-bone-50 sm:px-8" ref={ref}>
+      <div data-reveal className="mx-auto max-w-2xl text-center">
+        <p className="mb-3 flex items-center justify-center gap-2 text-sm font-medium text-gold-500">
+          <Sparkles size={15} /> Meet CREW
+        </p>
+        <h2 className="font-display text-4xl leading-tight sm:text-5xl">The money workspace behind every project.</h2>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Interactive demo — the judge-facing core experience, no account required.
+// Product UI transitions here (slider value, invoice reveal, payment
+// verification) use Framer Motion, per the brief's animation-system split.
+// ---------------------------------------------------------------------------
+
+function InteractiveDemo() {
+  const [depositPct, setDepositPct] = useState(asoEbiProject.depositPct);
+  const [invoiceGenerated, setInvoiceGenerated] = useState(false);
+  const [paymentVerified, setPaymentVerified] = useState(false);
+
+  const costs = asoEbiProject.costs;
+  const revenue = asoEbiProject.revenue;
+  const impact = calculateDepositImpact(costs, revenue, depositPct, asoEbiProject.expectedPaymentDays);
+  const profit = calculateExpectedProfit(costs, revenue);
+  const recommended = recommendMinimumSafeDeposit(costs, revenue);
+
+  return (
+    <section className="border-t border-ink-900/5 px-6 py-24 sm:px-8" id="demo">
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-10 text-center">
+          <h2 className="font-display text-3xl sm:text-4xl">Try it with Amara's project</h2>
+          <p className="mt-2 text-sm text-ink-500">This demo uses sample business data — no account needed.</p>
+        </div>
+
+        <Card className="p-5 sm:p-7">
+          {/* Step 1: project */}
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <div className="text-xs font-medium uppercase tracking-wide text-ink-500">Project</div>
+              <h3 className="font-display text-2xl">{asoEbiProject.name}</h3>
+              <p className="text-sm text-ink-500">{asoEbiProject.clientName} · Fashion project</p>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-ink-500">Revenue</div>
+              <div className="num text-xl font-medium">{formatNaira(revenue)}</div>
+            </div>
+          </div>
+
+          <div className="mb-6 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+            {costs.map((c) => (
+              <div key={c.id} className="rounded-lg bg-bone-100/70 p-3">
+                <div className="text-xs text-ink-500">{c.label}</div>
+                <div className="num font-medium">{formatNaira(c.amount)}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Step 2 + 3: financial result + deposit slider */}
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <ResultStat label="Upfront exposure" value={formatNaira(impact.upfrontExposure)} tone="thread" />
+            <ResultStat label="Expected profit" value={formatNaira(profit)} tone="verified" />
+            <ResultStat label="Days to cash" value={`${asoEbiProject.expectedPaymentDays}`} />
+          </div>
+
+          <div className="mb-6 rounded-xl border border-ink-900/10 p-4">
+            <DepositSlider value={depositPct} onChange={setDepositPct} recommended={recommended} />
+            <p className="mt-3 text-xs text-ink-500">Moving the deposit changes your exposure and gap in real time.</p>
+          </div>
+
+          {/* Step 4: recommendation */}
+          {recommended !== null && depositPct < recommended && (
+            <div className="mb-6 rounded-xl border border-gold-500/30 bg-gold-100/60 p-4">
+              <p className="text-sm font-medium text-ink-900">Recommended deposit: {recommended}%</p>
+              <p className="mt-1 text-sm text-ink-700">This deposit covers your upfront costs with a safer buffer.</p>
+            </div>
+          )}
+          {recommended !== null && depositPct >= recommended && (
+            <div className="mb-6 rounded-xl border border-verified-600/20 bg-verified-100/60 p-4 text-sm text-verified-600">
+              This deposit covers your upfront costs. No cash gap for this project.
+            </div>
+          )}
+
+          {/* Step 5: invoice */}
+          <div className="mb-6 border-t border-ink-900/10 pt-6">
+            {!invoiceGenerated ? (
+              <Button onClick={() => setInvoiceGenerated(true)}>Generate invoice</Button>
+            ) : (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-ink-900/10 bg-bone-100/50 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <span className="text-sm font-medium">Invoice preview</span>
+                    <Pill>Not sent yet</Pill>
+                  </div>
+                  <div className="space-y-1.5 text-sm">
+                    <Row label="Client" value={asoEbiProject.clientName} />
+                    <Row label="Amount" value={formatNaira(revenue)} />
+                    <Row label="Deposit" value={`${depositPct}% · ${formatNaira(impact.depositAmount)}`} />
+                    <Row label="Balance" value={formatNaira(revenue - impact.depositAmount)} />
+                    <Row label="Due" value={`${asoEbiProject.expectedPaymentDays} days after delivery`} />
+                  </div>
+                </div>
+                <div className="rounded-xl border border-verified-600/20 bg-verified-100/40 p-4">
+                  <p className="mb-1 text-xs font-medium uppercase tracking-wide text-verified-600">WhatsApp-ready</p>
+                  <p className="text-sm text-ink-700">
+                    "Hi {asoEbiProject.clientName}, here's your invoice for the {asoEbiProject.name.toLowerCase()} — {formatNaira(revenue)} total, {formatNaira(impact.depositAmount)} deposit to start. CREW link: crew.app/pay/asoebi"
+                  </p>
+                </div>
+
+                {/* Step 6: simulated payment */}
+                {!paymentVerified ? (
+                  <Button variant="secondary" onClick={() => setPaymentVerified(true)}>
+                    Simulate client payment
+                  </Button>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="rounded-xl border border-verified-600/30 bg-verified-100/60 p-4"
+                  >
+                    <div className="mb-2 flex items-center gap-2">
+                      <Pill tone="verified">Verified</Pill>
+                      <span className="text-sm text-ink-700">Payment received</span>
+                    </div>
+                    <p className="text-sm text-verified-600">Cash position, profit, and project status just updated.</p>
+                  </motion.div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="text-center">
+            <Link to="/demo" className="text-sm font-medium text-ink-700 underline underline-offset-4 hover:text-ink-900">
+              Open the full workspace demo →
+            </Link>
+          </div>
+        </Card>
+      </div>
+    </section>
+  );
+}
+
+function ResultStat({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'thread' | 'verified' }) {
+  const toneClass = tone === 'thread' ? 'text-thread-600' : tone === 'verified' ? 'text-verified-600' : 'text-ink-900';
+  return (
+    <div className="rounded-xl border border-ink-900/10 p-3.5">
+      <div className="text-xs text-ink-500">{label}</div>
+      <div className={`num text-lg font-medium ${toneClass}`}>{value}</div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-ink-500">{label}</span>
+      <span className="num font-medium">{value}</span>
+    </div>
+  );
+}
+
+function UserVoices() {
+  const ref = useGsapReveal<HTMLDivElement>({ stagger: 0.1 });
+  return (
+    <section className="border-t border-ink-900/5 bg-bone-100/50 px-6 py-24 sm:px-8" ref={ref}>
+      <div className="mx-auto max-w-4xl">
+        <h2 data-reveal className="mb-2 font-display text-3xl">
+          What creatives are saying
+        </h2>
+        <p data-reveal className="mb-10 text-sm text-ink-500">
+          Sample feedback for this demo — real user comments will replace these.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {demoFeedback.map((f) => (
+            <div key={f.id} data-reveal className="rounded-xl border border-ink-900/10 bg-white p-5">
+              <p className="mb-4 text-sm leading-relaxed text-ink-700">"{f.quote}"</p>
+              <div className="text-xs text-ink-500">
+                {f.craft} · {f.location}
+              </div>
+              <div className="mt-1 text-[11px] uppercase tracking-wide text-ink-300">{f.source}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TrustSection() {
+  const ref = useGsapReveal<HTMLDivElement>({ stagger: 0.1 });
+  return (
+    <section className="border-t border-ink-900/5 px-6 py-24 sm:px-8" ref={ref}>
+      <div className="mx-auto max-w-2xl">
+        <h2 data-reveal className="mb-10 font-display text-3xl">
+          Nothing happens without you
+        </h2>
+        <div className="space-y-4">
+          <TrustCard title="Invoice approval" body="CREW prepared this invoice. Nothing has been sent yet." />
+          <TrustCard title="Manual payments" body="You marked this payment manually. CREW will keep it unverified until confirmed by a real payment." />
+          <TrustCard title="Your data" body="Project activity, payment activity, and business patterns stay yours. You choose what, if anything, gets shared — and you can revoke access anytime." />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function TrustCard({ title, body }: { title: string; body: string }) {
+  return (
+    <div data-reveal className="rounded-xl border border-ink-900/10 bg-white p-5">
+      <h3 className="mb-1 text-sm font-medium text-ink-900">{title}</h3>
+      <p className="text-sm text-ink-500">{body}</p>
+    </div>
+  );
+}
+
+function PricingSection() {
+  const ref = useGsapReveal<HTMLDivElement>({ stagger: 0.1 });
+  const tiers = [
+    { name: 'Free', desc: 'Limited active projects, basic tracking and invoices.' },
+    { name: 'Pro', desc: 'Unlimited projects, forecasting, deposit simulation, Copilot.' },
+    { name: 'Studio', desc: 'Teams and advanced collaboration.' },
+  ];
+  return (
+    <section className="border-t border-ink-900/5 bg-bone-100/50 px-6 py-24 sm:px-8" ref={ref}>
+      <div className="mx-auto max-w-4xl">
+        <h2 data-reveal className="mb-10 font-display text-3xl">
+          Pricing
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {tiers.map((tier) => (
+            <div key={tier.name} data-reveal className="rounded-xl border border-ink-900/10 bg-white p-6">
+              <h3 className="font-display text-xl">{tier.name}</h3>
+              <p className="my-3 text-sm text-ink-500">{tier.desc}</p>
+              <div className="text-sm font-medium text-ink-700">Coming soon</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FinalCTA() {
+  const ref = useGsapReveal<HTMLDivElement>();
+  return (
+    <section className="border-t border-ink-900/5 bg-ink-950 px-6 py-28 text-center text-bone-50 sm:px-8" ref={ref}>
+      <div data-reveal className="mx-auto max-w-xl">
+        <p className="font-display text-3xl sm:text-4xl">You already run the project.</p>
+        <p className="mt-2 font-display text-3xl text-bone-200/60 sm:text-4xl">CREW helps you run what happens around the money.</p>
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          <Link to="/onboarding">
+            <Button className="!bg-gold-500 !text-ink-950 hover:!bg-gold-500/90">Build my workspace</Button>
+          </Link>
+          <Link to="/demo">
+            <Button variant="ghost" className="!text-bone-50 hover:!bg-white/10">
+              Explore the demo
+            </Button>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="bg-ink-950 px-6 py-8 text-center text-xs text-bone-200/40 sm:px-8">
+      CREW — the digital workspace where a creative runs the money side of every project.
+    </footer>
+  );
+}

@@ -1,0 +1,86 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap');
+
+/*
+  CREW design tokens.
+
+  Direction: an atelier ledger. Fashion-house paper stock, not SaaS glass.
+  A warm bone/ivory ground (not the generic AI-cream #F4F1EA), a near-ink
+  navy for structure and trust, and one saturated accent -- a deep thread
+  red drawn from aso-ebi textile dye, used sparingly for money-in-motion
+  moments (gaps, the deposit slider, verified states) only.
+
+  Display type: Fraunces -- a warm, slightly irregular serif with real
+  optical sizing, used at large scale for narrative moments. Body/UI:
+  Inter. Numbers/data labels: IBM Plex Mono, used only for figures in
+  tables and the ledger-style financial snapshots -- never for headings.
+*/
+@theme {
+  --font-display: 'Fraunces', ui-serif, serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --color-ink-950: #14171f;
+  --color-ink-900: #1b1f2a;
+  --color-ink-800: #262b39;
+  --color-ink-700: #383f52;
+  --color-ink-500: #6b7286;
+  --color-ink-300: #a7acb9;
+
+  --color-bone-50: #faf8f4;
+  --color-bone-100: #f4f0e8;
+  --color-bone-200: #ece5d8;
+
+  --color-thread-600: #8a2c2c;
+  --color-thread-500: #a83636;
+  --color-thread-100: #f3e2df;
+
+  --color-gold-500: #b8944f;
+  --color-gold-100: #f1e8d4;
+
+  --color-verified-600: #2f6b4f;
+  --color-verified-100: #dfeee5;
+
+  --shadow-ledger: 0 1px 0 0 rgba(20, 23, 31, 0.06);
+}
+
+html {
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bone-50);
+  color: var(--color-ink-900);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
