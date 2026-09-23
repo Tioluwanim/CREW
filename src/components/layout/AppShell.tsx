@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LayoutDashboard, Briefcase, Users, Receipt, Wallet, TrendingUp, Plus, UserCircle, Sparkles, Settings } from 'lucide-react';
-import { FloatingCopilot } from '../copilot/FloatingCopilot';
+import { CopilotSurface } from '../../features/copilot';
 import { CopilotProvider } from '../copilot/CopilotContext';
 import { cn } from '../../lib/cn';
 
@@ -116,7 +116,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <FloatingCopilot />
+        <CopilotSurface />
       </div>
     </CopilotProvider>
   );
