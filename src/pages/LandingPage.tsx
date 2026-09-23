@@ -4,15 +4,17 @@ import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { Button, Card, Pill } from '../components/ui/primitives';
 import { DepositSlider } from '../components/forms/DepositSlider';
-import { formatNaira } from '../lib/money';
+import { formatNaira, formatNairaCompact, formatNairaSigned } from '../lib/money';
 import { asoEbiProject, demoFeedback } from '../data/demoData';
 import { useLenisScroll } from '../hooks/useLenisScroll';
 import { useGsapReveal } from '../hooks/useGsapReveal';
 import { useScrollProgress } from '../hooks/useScrollProgress';
 import {
+  buildCashFlowProjection,
   calculateDepositImpact,
   calculateExpectedProfit,
   recommendMinimumSafeDeposit,
+  sumCreatorFundedCosts,
 } from '../lib/finance';
 
 const HeroScene = lazy(() => import('../components/landing/HeroScene').then((m) => ({ default: m.HeroScene })));
@@ -27,8 +29,8 @@ export function LandingPage() {
       <ProblemScene />
       <IntroScene />
       <InteractiveDemo />
-      <UserVoices />
       <TrustSection />
+      <UserVoices />
       <PricingSection />
       <FinalCTA />
       <Footer />
@@ -75,6 +77,7 @@ function beatOpacity(progress: number, [start, end]: readonly [number, number], 
   const fadeInEnd = start + (end - start) * 0.3;
   const fadeOutStart = end - (end - start) * 0.2;
   if (progress < start) return 0;
+  if (start === 0 && progress === 0) return 1;
   if (progress < fadeInEnd) return (progress - start) / (fadeInEnd - start);
   if (progress < fadeOutStart) return 1;
   if (progress < end) return holdAtEnd ? 1 : 1 - (progress - fadeOutStart) / (end - fadeOutStart);
@@ -82,7 +85,9 @@ function beatOpacity(progress: number, [start, end]: readonly [number, number], 
 }
 
 function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
+  const [reduced, setReduced] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
   useEffect(() => {
     const query = window.matchMedia('(prefers-reduced-motion: reduce)');
     setReduced(query.matches);
@@ -130,14 +135,14 @@ function PinnedOpeningScene() {
           </Suspense>
         </div>
 
-        <div className="relative z-10 mx-auto max-w-3xl px-6 text-center sm:px-8">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-5 text-center sm:px-8">
           {BEAT_TEXTS.map((beat) => (
             <p
               key={beat.text}
               className={
                 beat.big
-                  ? 'absolute inset-x-0 font-display text-4xl leading-tight text-ink-900 sm:text-6xl'
-                  : 'absolute inset-x-0 font-display text-2xl text-ink-500 sm:text-3xl'
+                  ? 'absolute left-1/2 w-[min(90vw,48rem)] -translate-x-1/2 font-display text-[clamp(2rem,8vw,3.75rem)] leading-[1.04] text-ink-900 text-balance'
+                  : 'absolute left-1/2 w-[min(86vw,36rem)] -translate-x-1/2 font-display text-[clamp(1.35rem,4vw,1.875rem)] leading-tight text-ink-500 text-balance'
               }
               style={{ opacity: beatOpacity(progress, beat.range, beat.holdAtEnd) }}
             >
@@ -213,6 +218,9 @@ function IntroScene() {
           <Sparkles size={15} /> Meet CREW
         </p>
         <h2 className="font-display text-4xl leading-tight sm:text-5xl">The money workspace behind every project.</h2>
+        <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-bone-200/60">
+          See what each project needs before the work begins, then keep the money moving while you make it happen.
+        </p>
       </div>
     </section>
   );
@@ -234,6 +242,8 @@ function InteractiveDemo() {
   const impact = calculateDepositImpact(costs, revenue, depositPct, asoEbiProject.expectedPaymentDays);
   const profit = calculateExpectedProfit(costs, revenue);
   const recommended = recommendMinimumSafeDeposit(costs, revenue);
+  const forecast = buildCashFlowProjection(costs, revenue, depositPct, asoEbiProject.expectedPaymentDays, 0);
+  const currentCashPosition = paymentVerified ? profit : impact.depositAmount - sumCreatorFundedCosts(costs);
 
   return (
     <section className="border-t border-ink-900/5 px-6 py-24 sm:px-8" id="demo">
@@ -269,6 +279,7 @@ function InteractiveDemo() {
           {/* Step 2 + 3: financial result + deposit slider */}
           <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <ResultStat label="Upfront exposure" value={formatNaira(impact.upfrontExposure)} tone="thread" />
+            <ResultStat label="Cash gap" value={formatNaira(impact.cashGap)} tone="thread" />
             <ResultStat label="Expected profit" value={formatNaira(profit)} tone="verified" />
             <ResultStat label="Days to cash" value={`${asoEbiProject.expectedPaymentDays}`} />
           </div>
@@ -276,6 +287,37 @@ function InteractiveDemo() {
           <div className="mb-6 rounded-xl border border-ink-900/10 p-4">
             <DepositSlider value={depositPct} onChange={setDepositPct} recommended={recommended} />
             <p className="mt-3 text-xs text-ink-500">Moving the deposit changes your exposure and gap in real time.</p>
+          </div>
+
+          <div className="mb-6 rounded-xl border border-ink-900/10 bg-bone-100/40 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wide text-ink-500">Cash forecast</div>
+                <div className="text-sm text-ink-700">How this project moves your cash before the balance arrives.</div>
+              </div>
+              <div className={`num text-sm font-medium ${currentCashPosition < 0 ? 'text-thread-600' : 'text-verified-600'}`}>
+                {formatNairaSigned(currentCashPosition)} now
+              </div>
+            </div>
+            <div className="grid grid-cols-5 gap-1.5">
+              {forecast.map((point) => (
+                <div key={point.label} className="min-w-0">
+                  <div className="mb-1 text-[10px] text-ink-500">{point.label.replace(' days', 'd')}</div>
+                  <div className={`num truncate text-xs font-medium ${point.projectedBalance < 0 ? 'text-thread-600' : 'text-verified-600'}`}>
+                    {formatNairaCompact(point.projectedBalance)}
+                  </div>
+                  <div className="mt-1 h-1.5 rounded-full bg-ink-900/10">
+                    <motion.div
+                      key={`${point.label}-${point.projectedBalance}`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, Math.max(12, (Math.abs(point.projectedBalance) / revenue) * 100))}%` }}
+                      transition={{ duration: 0.35, ease: 'easeOut' }}
+                      className={`h-1.5 rounded-full ${point.projectedBalance < 0 ? 'bg-thread-600' : 'bg-verified-600'}`}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Step 4: recommendation */}
@@ -332,7 +374,9 @@ function InteractiveDemo() {
                       <Pill tone="verified">Verified</Pill>
                       <span className="text-sm text-ink-700">Payment received</span>
                     </div>
-                    <p className="text-sm text-verified-600">Cash position, profit, and project status just updated.</p>
+                    <p className="text-sm text-verified-600">
+                      Cash position: {formatNaira(currentCashPosition)}. Expected profit: {formatNaira(profit)}. Project status: paid.
+                    </p>
                   </motion.div>
                 )}
               </div>
@@ -355,7 +399,15 @@ function ResultStat({ label, value, tone = 'default' }: { label: string; value: 
   return (
     <div className="rounded-xl border border-ink-900/10 p-3.5">
       <div className="text-xs text-ink-500">{label}</div>
-      <div className={`num text-lg font-medium ${toneClass}`}>{value}</div>
+      <motion.div
+        key={value}
+        initial={{ opacity: 0.35, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className={`num text-lg font-medium ${toneClass}`}
+      >
+        {value}
+      </motion.div>
     </div>
   );
 }
@@ -372,13 +424,16 @@ function Row({ label, value }: { label: string; value: string }) {
 function UserVoices() {
   const ref = useGsapReveal<HTMLDivElement>({ stagger: 0.1 });
   return (
-    <section className="border-t border-ink-900/5 bg-bone-100/50 px-6 py-24 sm:px-8" ref={ref}>
+    <section className="border-t border-ink-900/5 bg-bone-100/50 px-6 py-20 sm:px-8 sm:py-24" ref={ref}>
       <div className="mx-auto max-w-4xl">
-        <h2 data-reveal className="mb-2 font-display text-3xl">
-          What creatives are saying
+        <p data-reveal className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-thread-600">
+          A clearer way to work
+        </p>
+        <h2 data-reveal className="mb-3 max-w-xl font-display text-3xl leading-tight sm:text-4xl">
+          Keep the project moving without guessing about the money.
         </h2>
         <p data-reveal className="mb-10 text-sm text-ink-500">
-          Sample feedback for this demo — real user comments will replace these.
+          Sample feedback for this demo — real user comments will replace these. Every voice points to the same gap: knowing the margin is not the same as knowing when cash is available.
         </p>
         <div className="grid gap-4 sm:grid-cols-3">
           {demoFeedback.map((f) => (
@@ -425,25 +480,21 @@ function TrustCard({ title, body }: { title: string; body: string }) {
 
 function PricingSection() {
   const ref = useGsapReveal<HTMLDivElement>({ stagger: 0.1 });
-  const tiers = [
-    { name: 'Free', desc: 'Limited active projects, basic tracking and invoices.' },
-    { name: 'Pro', desc: 'Unlimited projects, forecasting, deposit simulation, Copilot.' },
-    { name: 'Studio', desc: 'Teams and advanced collaboration.' },
-  ];
   return (
-    <section className="border-t border-ink-900/5 bg-bone-100/50 px-6 py-24 sm:px-8" ref={ref}>
-      <div className="mx-auto max-w-4xl">
-        <h2 data-reveal className="mb-10 font-display text-3xl">
-          Pricing
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {tiers.map((tier) => (
-            <div key={tier.name} data-reveal className="rounded-xl border border-ink-900/10 bg-white p-6">
-              <h3 className="font-display text-xl">{tier.name}</h3>
-              <p className="my-3 text-sm text-ink-500">{tier.desc}</p>
-              <div className="text-sm font-medium text-ink-700">Coming soon</div>
-            </div>
-          ))}
+    <section className="border-t border-ink-900/5 bg-gold-100/45 px-6 py-20 sm:px-8 sm:py-24" ref={ref}>
+      <div className="mx-auto grid max-w-4xl gap-8 sm:grid-cols-[1fr_auto] sm:items-end">
+        <div>
+          <p data-reveal className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gold-500">Start with the work</p>
+          <h2 data-reveal className="max-w-xl font-display text-3xl leading-tight sm:text-4xl">A workspace for the money side of making things.</h2>
+          <p data-reveal className="mt-3 max-w-lg text-sm leading-relaxed text-ink-700">Explore the demo with sample data, or build a workspace around your own projects.</p>
+        </div>
+        <div data-reveal className="flex flex-wrap gap-3 sm:justify-end">
+          <Link to="/demo">
+            <Button variant="secondary">Explore the demo</Button>
+          </Link>
+          <Link to="/onboarding">
+            <Button>Build my workspace</Button>
+          </Link>
         </div>
       </div>
     </section>
@@ -460,11 +511,6 @@ function FinalCTA() {
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link to="/onboarding">
             <Button className="!bg-gold-500 !text-ink-950 hover:!bg-gold-500/90">Build my workspace</Button>
-          </Link>
-          <Link to="/demo">
-            <Button variant="ghost" className="!text-bone-50 hover:!bg-white/10">
-              Explore the demo
-            </Button>
           </Link>
         </div>
       </div>

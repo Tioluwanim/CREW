@@ -43,6 +43,23 @@ test('landing page renders the cinematic story and interactive demo', async ({ p
   await expect(page.getByRole('heading', { name: "Try it with Amara's project" })).toBeVisible();
 });
 
+test('landing demo recalculates the cash gap and settles payment', async ({ page }) => {
+  await page.goto('/');
+
+  const slider = page.getByRole('slider', { name: 'Deposit percentage' });
+  await expect(page.getByText('Cash gap').locator('..')).toContainText('₦133,000');
+
+  await slider.fill('70');
+  await expect(page.getByText('Cash gap').locator('..')).toContainText('₦0');
+  await expect(page.getByText('Cash forecast')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Generate invoice' }).click();
+  await page.getByRole('button', { name: 'Simulate client payment' }).click();
+  await expect(page.getByText('Verified', { exact: true })).toBeVisible();
+  await expect(page.getByText(/Cash position: ₦155,000/)).toBeVisible();
+  await expect(page.getByText(/Project status: paid/)).toBeVisible();
+});
+
 test('mobile viewport keeps bottom nav and floating Copilot from overlapping', async ({ page }) => {
   await page.goto('/app');
   const nav = page.locator('nav').last();
