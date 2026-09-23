@@ -6,13 +6,13 @@
 
 # Test info
 
-- Name: core-story.spec.ts >> landing demo recalculates the cash gap and settles payment
+- Name: core-story.spec.ts >> mobile viewport keeps bottom nav and floating Copilot from overlapping
 - Location: e2e\core-story.spec.ts:46:1
 
 # Error details
 
 ```
-Error: browserType.launch: Executable doesn't exist at C:\Users\User\AppData\Local\ms-playwright\chromium_headless_shell-1243\chrome-headless-shell-win64\chrome-headless-shell.exe
+Error: browserType.launch: Executable doesn't exist at C:\Users\User\AppData\Local\ms-playwright\webkit-2359\Playwright.exe
 ╔════════════════════════════════════════════════════════════╗
 ║ Looks like Playwright was just installed or updated.       ║
 ║ Please run the following command to download new browsers: ║

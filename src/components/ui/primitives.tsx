@@ -59,7 +59,7 @@ export function Pill({ children, tone = 'default' }: { children: ReactNode; tone
     default: 'bg-ink-900/5 text-ink-700',
     thread: 'bg-thread-100 text-thread-600',
     verified: 'bg-verified-100 text-verified-600',
-    gold: 'bg-gold-100 text-gold-500',
+    gold: 'bg-gold-100 text-ink-700',
   };
   return <span className={cn('inline-flex items-center rounded-full px-3 py-1 text-xs font-medium', tones[tone])}>{children}</span>;
 }

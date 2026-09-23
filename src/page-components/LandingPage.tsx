@@ -513,7 +513,7 @@ function PricingSection() {
     <section className="atelier-paper border-t border-ink-900/5 bg-gold-100/45 px-6 py-20 sm:px-8 sm:py-24" ref={ref}>
       <div className="mx-auto grid max-w-4xl gap-8 sm:grid-cols-[1fr_auto] sm:items-end">
         <div>
-          <p data-reveal className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-gold-500">Start with the work</p>
+          <p data-reveal className="mb-3 text-xs font-medium uppercase tracking-[0.18em] text-ink-700">Start with the work</p>
           <h2 data-reveal className="max-w-xl font-display text-3xl leading-tight sm:text-4xl">A workspace for the money side of making things.</h2>
           <p data-reveal className="mt-3 max-w-lg text-sm leading-relaxed text-ink-700">Explore the demo with sample data, or build a workspace around your own projects.</p>
         </div>
