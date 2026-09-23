@@ -1,5 +1,6 @@
-import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Briefcase, Users, Receipt, Wallet, TrendingUp, Plus } from 'lucide-react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { LayoutDashboard, Briefcase, Users, Receipt, Wallet, TrendingUp, Plus, UserCircle, Sparkles, Settings } from 'lucide-react';
 import { FloatingCopilot } from '../copilot/FloatingCopilot';
 import { CopilotProvider } from '../copilot/CopilotContext';
 import { cn } from '../../lib/cn';
@@ -16,7 +17,14 @@ const desktopExtraItems = [
   { to: '/app/profit', label: 'Profit', icon: TrendingUp, end: false },
 ];
 
+const desktopSecondaryItems = [
+  { to: '/app/profile', label: 'Business profile', icon: UserCircle, end: false },
+  { to: '/app/opportunities', label: 'Opportunities', icon: Sparkles, end: false },
+  { to: '/app/settings', label: 'Settings', icon: Settings, end: false },
+];
+
 export function AppShell() {
+  const location = useLocation();
   return (
     <CopilotProvider>
       <div className="min-h-screen bg-bone-50">
@@ -43,8 +51,25 @@ export function AppShell() {
               </NavLink>
             ))}
           </nav>
+          <nav className="flex flex-col gap-1 border-t border-ink-900/10 px-3 py-3">
+            {desktopSecondaryItems.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-ink-500 transition-colors hover:bg-ink-900/5 hover:text-ink-700',
+                    isActive && 'bg-ink-900/5 text-ink-900',
+                  )
+                }
+              >
+                <item.icon size={16} strokeWidth={2} />
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
           <div className="border-t border-ink-900/10 p-4">
-            <NavLink to="/app/projects" className="flex items-center gap-2 rounded-lg bg-ink-900 px-3 py-2.5 text-sm font-medium text-bone-50">
+            <NavLink to="/app/projects/new" className="flex items-center gap-2 rounded-lg bg-ink-900 px-3 py-2.5 text-sm font-medium text-bone-50">
               <Plus size={16} /> New project
             </NavLink>
           </div>
@@ -52,8 +77,25 @@ export function AppShell() {
 
         {/* Main content */}
         <div className="lg:pl-60">
+          {/* Mobile top bar: wordmark + settings access, since bottom nav stays to the core 4 items */}
+          <div className="flex items-center justify-between border-b border-ink-900/10 bg-bone-50/90 px-4 py-3 backdrop-blur lg:hidden">
+            <span className="font-display text-lg italic text-ink-900">CREW</span>
+            <NavLink to="/app/settings" aria-label="Settings" className="rounded-full p-1.5 text-ink-500 hover:bg-ink-900/5 hover:text-ink-900">
+              <Settings size={19} strokeWidth={2} />
+            </NavLink>
+          </div>
           <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-10">
-            <Outlet />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
           </main>
         </div>
 

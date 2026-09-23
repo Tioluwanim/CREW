@@ -15,6 +15,11 @@ const CashFlowPage = lazy(() => import('./pages/CashFlowPage').then((m) => ({ de
 const InvoicesPage = lazy(() => import('./pages/SecondaryPages').then((m) => ({ default: m.InvoicesPage })));
 const ClientsPage = lazy(() => import('./pages/SecondaryPages').then((m) => ({ default: m.ClientsPage })));
 const ProfitPage = lazy(() => import('./pages/SecondaryPages').then((m) => ({ default: m.ProfitPage })));
+const CreateProjectPage = lazy(() => import('./pages/CreateProjectPage').then((m) => ({ default: m.CreateProjectPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const OpportunitiesPage = lazy(() => import('./pages/OpportunitiesPage').then((m) => ({ default: m.OpportunitiesPage })));
+const ConsentPage = lazy(() => import('./pages/OpportunitiesPage').then((m) => ({ default: m.ConsentPage })));
+const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 const queryClient = new QueryClient();
 
@@ -36,11 +41,16 @@ export default function App() {
             <Route path="/app" element={<AppShell />}>
               <Route index element={<DashboardPage />} />
               <Route path="projects" element={<ProjectsPage />} />
+              <Route path="projects/new" element={<CreateProjectPage />} />
               <Route path="projects/:id" element={<ProjectDetailPage />} />
               <Route path="cash-flow" element={<CashFlowPage />} />
               <Route path="invoices" element={<InvoicesPage />} />
               <Route path="clients" element={<ClientsPage />} />
               <Route path="profit" element={<ProfitPage />} />
+              <Route path="profile" element={<ProfilePage />} />
+              <Route path="opportunities" element={<OpportunitiesPage />} />
+              <Route path="consent" element={<ConsentPage />} />
+              <Route path="settings" element={<SettingsPage />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

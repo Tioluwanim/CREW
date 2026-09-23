@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
 import { Button, Card, Pill } from '../components/ui/primitives';
+import { ScrollProgressBar } from '../components/landing/ScrollProgressBar';
 import { DepositSlider } from '../components/forms/DepositSlider';
 import { formatNaira, formatNairaCompact, formatNairaSigned } from '../lib/money';
 import { asoEbiProject, demoFeedback } from '../data/demoData';
@@ -24,6 +25,7 @@ export function LandingPage() {
 
   return (
     <div className="bg-bone-50 text-ink-900">
+      <ScrollProgressBar />
       <TopBar />
       <OpeningScene />
       <ProblemScene />
@@ -136,27 +138,56 @@ function PinnedOpeningScene() {
         </div>
 
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-5 text-center sm:px-8">
-          {BEAT_TEXTS.map((beat) => (
-            <p
-              key={beat.text}
-              className={
-                beat.big
-                  ? 'absolute left-1/2 w-[min(90vw,48rem)] -translate-x-1/2 font-display text-[clamp(2rem,8vw,3.75rem)] leading-[1.04] text-ink-900 text-balance'
-                  : 'absolute left-1/2 w-[min(86vw,36rem)] -translate-x-1/2 font-display text-[clamp(1.35rem,4vw,1.875rem)] leading-tight text-ink-500 text-balance'
-              }
-              style={{ opacity: beatOpacity(progress, beat.range, beat.holdAtEnd) }}
-            >
-              {beat.text}
-            </p>
-          ))}
+          {BEAT_TEXTS.map((beat) =>
+            beat.big ? (
+              <div
+                key={beat.text}
+                className="absolute left-1/2 w-[min(90vw,48rem)] -translate-x-1/2 font-display text-[clamp(2rem,8vw,3.75rem)] leading-[1.04] text-ink-900 text-balance"
+              >
+                {beat.text.split(' ').map((word, i, arr) => {
+                  const wordOffset = i * 0.015;
+                  const wordRange = [beat.range[0] + wordOffset, Math.min(beat.range[1], beat.range[0] + wordOffset + 0.14)] as const;
+                  return (
+                    <span
+                      key={i}
+                      className="inline-block"
+                      style={{ opacity: beatOpacity(progress, wordRange, beat.holdAtEnd) }}
+                    >
+                      {word}
+                      {i < arr.length - 1 ? '\u00A0' : ''}
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <p
+                key={beat.text}
+                className="absolute left-1/2 w-[min(86vw,36rem)] -translate-x-1/2 font-display text-[clamp(1.35rem,4vw,1.875rem)] leading-tight text-ink-500 text-balance"
+                style={{ opacity: beatOpacity(progress, beat.range, beat.holdAtEnd) }}
+              >
+                {beat.text}
+              </p>
+            ),
+          )}
         </div>
       </div>
     </section>
   );
 }
 
+/** Splits text into per-word spans for a word-cascade reveal — used sparingly, only on the two most important lines. */
+function splitWords(text: string) {
+  return text.split(' ').map((word, i, arr) => (
+    <span key={i} className="inline-block" data-reveal>
+      {word}
+      {i < arr.length - 1 ? '\u00A0' : ''}
+    </span>
+  ));
+}
+
 function ProblemScene() {
   const ref = useGsapReveal<HTMLDivElement>({ stagger: 0.1, y: 16 });
+  const headlineRef = useGsapReveal<HTMLDivElement>({ stagger: 0.045, y: 10, start: 'top 75%' });
   const costs = asoEbiProject.costs;
   const revenue = asoEbiProject.revenue;
   const impact = calculateDepositImpact(costs, revenue, asoEbiProject.depositPct, asoEbiProject.expectedPaymentDays);
@@ -190,10 +221,10 @@ function ProblemScene() {
           <Metric label="Projected cash gap" value={formatNaira(impact.cashGap)} accent />
         </div>
 
-        <div data-reveal className="mt-14 font-display text-3xl leading-snug sm:text-4xl">
-          The project was profitable.
+        <div ref={headlineRef} className="mt-14 font-display text-3xl leading-snug sm:text-4xl">
+          {splitWords('The project was profitable.')}
           <br />
-          <span className="text-bone-200/60">The problem was getting there.</span>
+          <span className="text-bone-200/60">{splitWords('The problem was getting there.')}</span>
         </div>
       </div>
     </section>
@@ -234,16 +265,20 @@ function IntroScene() {
 
 function InteractiveDemo() {
   const [depositPct, setDepositPct] = useState(asoEbiProject.depositPct);
+  const [costs, setCosts] = useState(asoEbiProject.costs);
   const [invoiceGenerated, setInvoiceGenerated] = useState(false);
   const [paymentVerified, setPaymentVerified] = useState(false);
 
-  const costs = asoEbiProject.costs;
   const revenue = asoEbiProject.revenue;
   const impact = calculateDepositImpact(costs, revenue, depositPct, asoEbiProject.expectedPaymentDays);
   const profit = calculateExpectedProfit(costs, revenue);
   const recommended = recommendMinimumSafeDeposit(costs, revenue);
   const forecast = buildCashFlowProjection(costs, revenue, depositPct, asoEbiProject.expectedPaymentDays, 0);
   const currentCashPosition = paymentVerified ? profit : impact.depositAmount - sumCreatorFundedCosts(costs);
+
+  function updateCostAmount(id: string, amount: number) {
+    setCosts((prev) => prev.map((c) => (c.id === id ? { ...c, amount: Math.max(0, amount) } : c)));
+  }
 
   return (
     <section className="border-t border-ink-900/5 px-6 py-24 sm:px-8" id="demo">
@@ -269,12 +304,22 @@ function InteractiveDemo() {
 
           <div className="mb-6 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
             {costs.map((c) => (
-              <div key={c.id} className="rounded-lg bg-bone-100/70 p-3">
+              <label key={c.id} className="block rounded-lg bg-bone-100/70 p-3 transition-colors focus-within:bg-bone-100">
                 <div className="text-xs text-ink-500">{c.label}</div>
-                <div className="num font-medium">{formatNaira(c.amount)}</div>
-              </div>
+                <div className="mt-0.5 flex items-baseline gap-0.5">
+                  <span className="num text-xs text-ink-400">₦</span>
+                  <input
+                    type="number"
+                    value={c.amount}
+                    onChange={(e) => updateCostAmount(c.id, Number(e.target.value))}
+                    aria-label={`${c.label} amount`}
+                    className="num w-full min-w-0 bg-transparent font-medium text-ink-900 outline-none"
+                  />
+                </div>
+              </label>
             ))}
           </div>
+          <p className="-mt-4 mb-6 text-xs text-ink-500">Try editing a cost — everything below updates with it.</p>
 
           {/* Step 2 + 3: financial result + deposit slider */}
           <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">

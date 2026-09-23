@@ -1,29 +1,73 @@
 import { useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { useProjectStore } from '../store/projectStore';
 import { useCopilotRoute } from '../components/copilot/CopilotContext';
 import { Card, StatLabel, StatValue, Pill, Button } from '../components/ui/primitives';
 import { EcobankBadge } from '../components/ui/EcobankBadge';
+import { EmptyState } from '../components/ui/states';
 import { DepositSlider } from '../components/forms/DepositSlider';
 import { CashFlowChart } from '../components/charts/CashFlowChart';
 import { formatNaira } from '../lib/money';
-import { recommendMinimumSafeDeposit } from '../lib/finance';
+import { otherProjects } from '../data/demoData';
+import {
+  recommendMinimumSafeDeposit,
+  calculateDepositImpact,
+  calculateExpectedProfit,
+  calculateProfitMargin,
+  buildCashFlowProjection,
+} from '../lib/finance';
+import type { Project, PaymentStatus } from '../types';
 
 const TABS = ['Overview', 'Budget', 'Forecast', 'Invoices', 'Payments', 'Profit', 'Activity'] as const;
 type Tab = (typeof TABS)[number];
 
 export function ProjectDetailPage() {
   useCopilotRoute('project');
+  const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState<Tab>('Overview');
-  const project = useProjectStore((s) => s.project);
+
+  const heroProject = useProjectStore((s) => s.project);
   const setDepositPct = useProjectStore((s) => s.setDepositPct);
   const updateCost = useProjectStore((s) => s.updateCost);
-  const paymentStatus = useProjectStore((s) => s.paymentStatus);
+  const heroPaymentStatus = useProjectStore((s) => s.paymentStatus);
   const simulatePayment = useProjectStore((s) => s.simulatePayment);
   const invoiceApproved = useProjectStore((s) => s.invoiceApproved);
   const approveInvoice = useProjectStore((s) => s.approveInvoice);
-  const derived = useProjectStore((s) => s.derived)();
+  const heroDerived = useProjectStore((s) => s.derived)();
 
+  const isHero = !id || id === heroProject.id;
+  const staticProject = isHero ? null : otherProjects.find((p) => p.id === id);
+
+  if (!isHero && !staticProject) {
+    return (
+      <div>
+        <EmptyState message="This project doesn't exist in the demo dataset." />
+        <div className="mt-4 text-center">
+          <Link to="/app/projects" className="text-sm font-medium text-ink-700 underline underline-offset-4">
+            Back to projects
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const project: Project = isHero ? heroProject : staticProject!;
+  const paymentStatus: PaymentStatus = isHero ? heroPaymentStatus : staticProject!.status === 'completed' ? 'verified' : 'pending';
   const recommended = recommendMinimumSafeDeposit(project.costs, project.revenue);
+
+  const derived = isHero
+    ? heroDerived
+    : (() => {
+        const impact = calculateDepositImpact(project.costs, project.revenue, project.depositPct, project.expectedPaymentDays);
+        return {
+          depositAmount: impact.depositAmount,
+          upfrontExposure: impact.upfrontExposure,
+          cashGap: impact.cashGap,
+          expectedProfit: calculateExpectedProfit(project.costs, project.revenue),
+          profitMargin: calculateProfitMargin(project.costs, project.revenue),
+          cashFlow: buildCashFlowProjection(project.costs, project.revenue, project.depositPct, project.expectedPaymentDays, 0),
+        };
+      })();
 
   return (
     <div>
@@ -33,6 +77,7 @@ export function ProjectDetailPage() {
           <Pill tone={paymentStatus === 'verified' ? 'verified' : 'default'}>
             {paymentStatus === 'verified' ? 'Completed' : 'In progress'}
           </Pill>
+          {!isHero && <Pill>Read-only in this demo</Pill>}
         </div>
         <p className="mt-1 text-sm text-ink-500">
           {project.clientName} · {project.craft}
@@ -75,7 +120,14 @@ export function ProjectDetailPage() {
       {tab === 'Overview' && (
         <Card className="p-5">
           <h2 className="mb-4 text-sm font-medium text-ink-700">Deposit</h2>
-          <DepositSlider value={project.depositPct} onChange={setDepositPct} recommended={recommended} />
+          {isHero ? (
+            <DepositSlider value={project.depositPct} onChange={setDepositPct} recommended={recommended} />
+          ) : (
+            <div className="flex items-center justify-between rounded-lg border border-ink-900/10 bg-bone-100/50 p-3">
+              <span className="text-sm text-ink-500">Deposit</span>
+              <span className="num text-lg font-medium text-ink-900">{project.depositPct}%</span>
+            </div>
+          )}
           <div className="mt-5 grid grid-cols-2 gap-4 border-t border-ink-900/10 pt-5 sm:grid-cols-3">
             <div>
               <StatLabel>Deposit amount</StatLabel>
@@ -97,21 +149,28 @@ export function ProjectDetailPage() {
 
       {tab === 'Budget' && (
         <Card className="divide-y divide-ink-900/10 p-1">
-          {project.costs.map((cost) => (
-            <div key={cost.id} className="flex items-center justify-between gap-4 p-4">
-              <span className="text-sm font-medium text-ink-700">{cost.label}</span>
-              <div className="flex items-center gap-1">
-                <span className="num text-sm text-ink-500">₦</span>
-                <input
-                  type="number"
-                  value={cost.amount}
-                  onChange={(e) => updateCost(cost.id, Number(e.target.value))}
-                  className="num w-28 rounded-md border border-ink-900/15 bg-white px-2 py-1 text-right text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900"
-                  aria-label={`${cost.label} amount`}
-                />
+          {project.costs.map((cost) =>
+            isHero ? (
+              <div key={cost.id} className="flex items-center justify-between gap-4 p-4">
+                <span className="text-sm font-medium text-ink-700">{cost.label}</span>
+                <div className="flex items-center gap-1">
+                  <span className="num text-sm text-ink-500">₦</span>
+                  <input
+                    type="number"
+                    value={cost.amount}
+                    onChange={(e) => updateCost(cost.id, Number(e.target.value))}
+                    className="num w-28 rounded-md border border-ink-900/15 bg-white px-2 py-1 text-right text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900"
+                    aria-label={`${cost.label} amount`}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div key={cost.id} className="flex items-center justify-between gap-4 p-4">
+                <span className="text-sm font-medium text-ink-700">{cost.label}</span>
+                <span className="num text-sm text-ink-900">{formatNaira(cost.amount)}</span>
+              </div>
+            ),
+          )}
           <div className="flex items-center justify-between p-4">
             <span className="text-sm font-medium text-ink-900">Total costs</span>
             <span className="num text-sm font-medium text-ink-900">
@@ -131,23 +190,32 @@ export function ProjectDetailPage() {
 
       {tab === 'Invoices' && (
         <Card className="p-5">
-          {!invoiceApproved ? (
-            <>
-              <p className="mb-4 text-sm text-ink-700">CREW prepared this invoice. Nothing has been sent yet.</p>
-              <div className="mb-5 space-y-2 rounded-lg border border-ink-900/10 bg-bone-100/60 p-4 text-sm">
-                <Row label="Client" value={project.clientName} />
-                <Row label="Amount" value={formatNaira(project.revenue)} />
-                <Row label="Deposit" value={`${project.depositPct}% · ${formatNaira(derived.depositAmount)}`} />
-                <Row label="Balance" value={formatNaira(project.revenue - derived.depositAmount)} />
-                <Row label="Due" value={`${project.expectedPaymentDays} days after delivery`} />
-              </div>
-              <div className="flex gap-2">
-                <Button variant="secondary">Edit</Button>
-                <Button onClick={approveInvoice}>Approve &amp; send</Button>
-              </div>
-            </>
+          {isHero ? (
+            !invoiceApproved ? (
+              <>
+                <p className="mb-4 text-sm text-ink-700">CREW prepared this invoice. Nothing has been sent yet.</p>
+                <div className="mb-5 space-y-2 rounded-lg border border-ink-900/10 bg-bone-100/60 p-4 text-sm">
+                  <Row label="Client" value={project.clientName} />
+                  <Row label="Amount" value={formatNaira(project.revenue)} />
+                  <Row label="Deposit" value={`${project.depositPct}% · ${formatNaira(derived.depositAmount)}`} />
+                  <Row label="Balance" value={formatNaira(project.revenue - derived.depositAmount)} />
+                  <Row label="Due" value={`${project.expectedPaymentDays} days after delivery`} />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="secondary">Edit</Button>
+                  <Button onClick={approveInvoice}>Approve &amp; send</Button>
+                </div>
+              </>
+            ) : (
+              <div className="text-sm text-verified-600">Invoice approved. WhatsApp-ready message copied to client.</div>
+            )
           ) : (
-            <div className="text-sm text-verified-600">Invoice approved. WhatsApp-ready message copied to client.</div>
+            <div className="space-y-2 rounded-lg border border-ink-900/10 bg-bone-100/60 p-4 text-sm">
+              <Row label="Client" value={project.clientName} />
+              <Row label="Amount" value={formatNaira(project.revenue)} />
+              <Row label="Deposit" value={`${project.depositPct}% · ${formatNaira(derived.depositAmount)}`} />
+              <Row label="Balance" value={formatNaira(project.revenue - derived.depositAmount)} />
+            </div>
           )}
         </Card>
       )}
@@ -163,10 +231,16 @@ export function ProjectDetailPage() {
           <div className="mb-4">
             <EcobankBadge />
           </div>
-          {paymentStatus !== 'verified' ? (
-            <Button onClick={simulatePayment}>Simulate client payment</Button>
+          {isHero ? (
+            paymentStatus !== 'verified' ? (
+              <Button onClick={simulatePayment}>Simulate client payment</Button>
+            ) : (
+              <p className="text-sm text-ink-500">Payment verified. Project cash position and profit have been updated.</p>
+            )
           ) : (
-            <p className="text-sm text-ink-500">Payment verified. Project cash position and profit have been updated.</p>
+            <p className="text-sm text-ink-500">
+              {paymentStatus === 'verified' ? 'Payment verified for this project.' : 'Payment still pending for this project.'}
+            </p>
           )}
         </Card>
       )}

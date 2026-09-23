@@ -1,15 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ProjectDetailPage } from '../pages/ProjectDetailPage';
 import { CopilotProvider } from '../components/copilot/CopilotContext';
 import { useProjectStore } from '../store/projectStore';
 
-function renderProjectPage() {
+function renderProjectPage(path = '/app/projects/project-asoebi') {
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[path]}>
       <CopilotProvider>
-        <ProjectDetailPage />
+        <Routes>
+          <Route path="/app/projects/:id" element={<ProjectDetailPage />} />
+        </Routes>
       </CopilotProvider>
     </MemoryRouter>,
   );
@@ -20,7 +22,7 @@ describe('ProjectDetailPage', () => {
     useProjectStore.getState().reset();
   });
 
-  it('renders the project name and headline figures', () => {
+  it('renders the hero (editable) project name and headline figures', () => {
     renderProjectPage();
     expect(screen.getByRole('heading', { name: 'Aso-ebi order' })).toBeInTheDocument();
     expect(screen.getByText('₦480,000')).toBeInTheDocument();
@@ -30,7 +32,6 @@ describe('ProjectDetailPage', () => {
     renderProjectPage();
     const slider = screen.getByRole('slider', { name: 'Deposit percentage' });
 
-    // At the default 40% deposit there is a cash gap, so "No gap" isn't shown.
     expect(screen.queryByText('No gap')).not.toBeInTheDocument();
 
     fireEvent.change(slider, { target: { value: '70' } });
@@ -47,5 +48,17 @@ describe('ProjectDetailPage', () => {
     fireEvent.change(materialsInput, { target: { value: '230000' } });
 
     expect(screen.getByText('₦345,000')).toBeInTheDocument(); // 230k + 80k + 20k + 15k
+  });
+
+  it('renders a non-hero project in read-only mode, with no editable deposit slider', () => {
+    renderProjectPage('/app/projects/project-ankara-set');
+    expect(screen.getByRole('heading', { name: 'Ankara two-piece — Funke' })).toBeInTheDocument();
+    expect(screen.getByText('Read-only in this demo')).toBeInTheDocument();
+    expect(screen.queryByRole('slider', { name: 'Deposit percentage' })).not.toBeInTheDocument();
+  });
+
+  it('shows an empty state for an id that matches nothing in the demo dataset', () => {
+    renderProjectPage('/app/projects/does-not-exist');
+    expect(screen.getByText("This project doesn't exist in the demo dataset.")).toBeInTheDocument();
   });
 });

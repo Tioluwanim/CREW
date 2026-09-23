@@ -4,12 +4,16 @@ import { useCopilotRoute } from '../components/copilot/CopilotContext';
 import { Card, StatLabel, StatValue } from '../components/ui/primitives';
 import { CashFlowChart } from '../components/charts/CashFlowChart';
 import { formatNaira } from '../lib/money';
-import { amaraProfile } from '../data/demoData';
+import { amaraProfile, otherProjects } from '../data/demoData';
 
 export function DashboardPage() {
   useCopilotRoute('dashboard');
   const project = useProjectStore((s) => s.project);
+  const paymentStatus = useProjectStore((s) => s.paymentStatus);
   const derived = useProjectStore((s) => s.derived)();
+
+  const activeCount =
+    (paymentStatus === 'verified' ? 0 : 1) + otherProjects.filter((p) => p.status !== 'completed').length;
 
   return (
     <div>
@@ -33,7 +37,7 @@ export function DashboardPage() {
         </Card>
         <Card className="p-4">
           <StatLabel>Active projects</StatLabel>
-          <StatValue>6</StatValue>
+          <StatValue>{activeCount}</StatValue>
         </Card>
       </div>
 
