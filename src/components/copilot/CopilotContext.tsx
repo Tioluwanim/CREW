@@ -1,3 +1,5 @@
+'use client';
+
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useProjectStore } from '../../store/projectStore';
 import { getCopilotInsight, type CopilotRoute } from '../../services/copilot';

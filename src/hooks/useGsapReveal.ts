@@ -1,16 +1,25 @@
-import { useEffect, useRef } from 'react';
+'use client';
+
+import { useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { useGSAP } from '@gsap/react';
 
 gsap.registerPlugin(ScrollTrigger);
+gsap.registerPlugin(useGSAP);
 
 interface RevealOptions {
   /** Seconds between each [data-reveal] element inside the container. */
   stagger?: number;
   /** y-offset each element animates in from, in px. */
   y?: number;
+  /** x-offset each element animates in from, in px. */
+  x?: number;
   /** ScrollTrigger start position for the container. */
   start?: string;
+  /** Duration and easing for this section's reveal character. */
+  duration?: number;
+  ease?: string;
 }
 
 /**
@@ -22,31 +31,29 @@ interface RevealOptions {
  * brief's animation-system split.
  */
 export function useGsapReveal<T extends HTMLElement>(options: RevealOptions = {}) {
-  const { stagger = 0.08, y = 20, start = 'top 85%' } = options;
+  const { stagger = 0.08, y = 20, x = 0, start = 'top 85%', duration = 0.65, ease = 'power3.out' } = options;
   const containerRef = useRef<T | null>(null);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
+  useGSAP(
+    () => {
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    const ctx = gsap.context(() => {
-      const targets = gsap.utils.toArray<HTMLElement>('[data-reveal]', container);
+      const targets = gsap.utils.toArray<HTMLElement>('[data-reveal]', containerRef.current);
       if (targets.length === 0) return;
 
       if (prefersReduced) {
-        gsap.set(targets, { opacity: 1, y: 0 });
+        gsap.set(targets, { opacity: 1, x: 0, y: 0 });
         return;
       }
 
-      gsap.set(targets, { opacity: 0, y });
+      gsap.set(targets, { opacity: 0, x, y });
       targets.forEach((el, i) => {
         gsap.to(el, {
           opacity: 1,
+          x: 0,
           y: 0,
-          duration: 0.65,
-          ease: 'power3.out',
+          duration,
+          ease,
           delay: stagger * i,
           scrollTrigger: {
             trigger: el,
@@ -55,10 +62,9 @@ export function useGsapReveal<T extends HTMLElement>(options: RevealOptions = {}
           },
         });
       });
-    }, container);
-
-    return () => ctx.revert();
-  }, [stagger, y, start]);
+    },
+    { scope: containerRef, dependencies: [stagger, x, y, start, duration, ease], revertOnUpdate: true },
+  );
 
   return containerRef;
 }

@@ -27,7 +27,7 @@ npm run format
 
 No environment variables are required to run the app — everything runs on
 mock data and MSW handlers by default. See `.env.example` for the
-`VITE_USE_MOCK_API` / `VITE_API_BASE_URL` flag that swaps the service
+`NEXT_PUBLIC_USE_MOCK_API` / `NEXT_PUBLIC_API_BASE_URL` flag that swaps the service
 layer to a real backend (section 43b).
 
 ## What's implemented and real
@@ -76,7 +76,7 @@ layer to a real backend (section 43b).
   surfaces numbers `lib/finance.ts` already computed.
 - **Service layer + mock/real seam (section 43b)** — every `services/*`
   function reads its base URL from `lib/apiConfig.ts`, switched by the
-  single `VITE_USE_MOCK_API` flag. `services/financials.ts` +
+  single `NEXT_PUBLIC_USE_MOCK_API` flag. `services/financials.ts` +
   `mocks/handlers.ts`'s `/api/projects/:id/financials` handler return the
   exact `ProjectFinancialSnapshot` shape a real backend would, computed
   live from `lib/finance.ts` — never a hardcoded response. An integration
@@ -142,8 +142,8 @@ layer to a real backend (section 43b).
   this sandbox (no network path to the Playwright CDN) — reviewed, not
   executed. Run `npx playwright install && npm run test:e2e` locally.
 - **No auth, no real payment integration, no real backend** — `/api/*` is
-  MSW by default; flip `VITE_USE_MOCK_API=false` and point
-  `VITE_API_BASE_URL` at a real backend to test the seam for real.
+  MSW by default; flip `NEXT_PUBLIC_USE_MOCK_API=false` and point
+  `NEXT_PUBLIC_API_BASE_URL` at a real backend to test the seam for real.
 
 ## Architecture
 

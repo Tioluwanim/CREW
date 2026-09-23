@@ -8,7 +8,7 @@ import { calculateDepositImpact, calculateExpectedProfit, calculateProfitMargin 
 // Section 43b's "mock-to-real swap contract" test: this exercises the
 // service layer exactly as the UI would, through fetch, against the MSW
 // mock. If this same test is later pointed at a real backend (by setting
-// VITE_USE_MOCK_API=false and VITE_API_BASE_URL) and still passes, that's
+// NEXT_PUBLIC_USE_MOCK_API=false and NEXT_PUBLIC_API_BASE_URL) and still passes, that's
 // the proof the seam holds — the service functions' call sites never
 // needed to change, only what's behind them.
 //

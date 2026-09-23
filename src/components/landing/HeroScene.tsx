@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -33,6 +35,15 @@ function sceneColor(hex: string, opacity: number) {
   return color;
 }
 
+function CuttingTable() {
+  return (
+    <mesh position={[0, -0.18, -1.05]}>
+      <boxGeometry args={[7.2, 4.2, 0.12]} />
+      <meshStandardMaterial color="#f4f0e8" roughness={0.94} metalness={0.01} />
+    </mesh>
+  );
+}
+
 function ProjectSheet({ progress }: HeroSceneProps) {
   const reveal = easeOutCubic(clampProgress(progress, BEATS.project));
   const deliver = smoothStep(clampProgress(progress, BEATS.deliver));
@@ -66,6 +77,10 @@ function ProjectSheet({ progress }: HeroSceneProps) {
       <mesh position={[0, -0.38, 0.08]} scale={[1 + deliver * 0.15, 1, 1]}>
         <boxGeometry args={[1.8, 0.045, 0.025]} />
         <meshStandardMaterial color="#d9d0c2" roughness={0.8} />
+      </mesh>
+      <mesh position={[-0.82, 0.48, 0.1]} rotation={[0, 0, -0.2]}>
+        <cylinderGeometry args={[0.055, 0.055, 0.08, 16]} />
+        <meshPhysicalMaterial color="#b8944f" metalness={0.6} roughness={0.28} clearcoat={0.45} />
       </mesh>
     </group>
   );
@@ -109,6 +124,10 @@ function CostPacket({ amount, index, progress }: { amount: number; index: number
       <mesh position={[-size * 0.2, 0, 0.1]}>
         <boxGeometry args={[size * 0.45, 0.035, 0.02]} />
         <meshStandardMaterial color="#d9d0c2" roughness={0.8} />
+      </mesh>
+      <mesh position={[size * 0.22, 0.11, 0.14]}>
+        <cylinderGeometry args={[0.045, 0.045, 0.08, 14]} />
+        <meshPhysicalMaterial color="#b8944f" metalness={0.58} roughness={0.3} clearcoat={0.4} />
       </mesh>
     </group>
   );
@@ -158,6 +177,7 @@ function Scene({ progress }: HeroSceneProps) {
       <ambientLight intensity={0.8} />
       <directionalLight position={[3, 5, 4]} intensity={1.4} color="#fffaf0" />
       <pointLight position={[-3, 1, 3]} intensity={0.35} color="#b8944f" />
+      <CuttingTable />
       <ProjectSheet progress={progress} />
       <RevenueMarker progress={progress} />
       {asoEbiProject.costs.map((cost, index) => (

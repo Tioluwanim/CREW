@@ -1,6 +1,8 @@
+'use client';
+
 import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { CopilotButton } from './CopilotButton';
 import { CopilotPanel } from './CopilotPanel';
 import { useCopilotContext } from './CopilotContext';
@@ -15,7 +17,7 @@ import type { CopilotAction } from './copilot.types';
 export function FloatingCopilot() {
   const [isOpen, setIsOpen] = useState(false);
   const { insight } = useCopilotContext();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   if (!insight) return null;
 
@@ -23,16 +25,16 @@ export function FloatingCopilot() {
     switch (action.kind) {
       case 'view_forecast':
       case 'show_gap':
-        navigate('/app/cash-flow');
+        router.push('/app/cash-flow');
         break;
       case 'simulate_deposit':
-        navigate('/app/projects/project-asoebi');
+        router.push('/app/projects/project-asoebi');
         break;
       case 'review_invoice':
-        navigate('/app/invoices');
+        router.push('/app/invoices');
         break;
       case 'view_history':
-        navigate('/app/clients');
+        router.push('/app/clients');
         break;
     }
     setIsOpen(false);

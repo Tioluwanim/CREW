@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import type { CopilotInsight as CopilotInsightType, CopilotAction as CopilotActionType } from './copilot.types';

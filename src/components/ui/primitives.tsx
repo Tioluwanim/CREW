@@ -1,3 +1,5 @@
+'use client';
+
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
 import { motion, type HTMLMotionProps } from 'framer-motion';
 import { cn } from '../../lib/cn';
