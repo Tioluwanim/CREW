@@ -9,6 +9,13 @@ import {
   findFirstCashGapDate,
 } from '../lib/finance';
 import type { ProjectFinancialSnapshot } from '../types';
+import type { components } from '../api/generated';
+import { validateResponse } from './contract';
+
+const jsonContract = <T>(path: string, method: string, status: number, body: T) => {
+  validateResponse(path, method, status, body);
+  return HttpResponse.json(body, { status });
+};
 
 // Mirrors the eventual FastAPI surface (see /docs/api-shape.md in a real
 // backend repo). Handlers read from the same seed data as the store so
@@ -22,7 +29,7 @@ export const handlers = [
       asoEbiProject.depositPct,
       asoEbiProject.expectedPaymentDays,
     );
-    return HttpResponse.json({
+    return jsonContract('/dashboard', 'get', 200, {
       cashPosition: 324_500,
       owed: 186_000,
       dueThisWeek: 94_000,
@@ -31,11 +38,14 @@ export const handlers = [
     });
   }),
 
-  http.get('/api/projects', () => HttpResponse.json([asoEbiProject])),
+  http.get('/api/projects', () => {
+    const projects: components['schemas']['Project'][] = [asoEbiProject];
+    return jsonContract('/projects', 'get', 200, projects);
+  }),
 
   http.get('/api/projects/:id', ({ params }) => {
-    if (params.id !== asoEbiProject.id) return HttpResponse.json({ error: 'not found' }, { status: 404 });
-    return HttpResponse.json(asoEbiProject);
+    if (params.id !== asoEbiProject.id) return jsonContract('/projects/{id}', 'get', 404, { error: 'not found' });
+    return jsonContract('/projects/{id}', 'get', 200, asoEbiProject);
   }),
 
   // The financial-snapshot endpoint — see services/financials.ts and
@@ -43,13 +53,13 @@ export const handlers = [
   // every figure is a live call to lib/finance.ts, never a literal, so
   // this handler can never silently disagree with the calculation core.
   http.get('/api/projects/:id/financials', ({ params }) => {
-    if (params.id !== asoEbiProject.id) return HttpResponse.json({ error: 'not found' }, { status: 404 });
+    if (params.id !== asoEbiProject.id) return jsonContract('/projects/{id}/financials', 'get', 404, { error: 'not found' });
 
     const { costs, revenue, depositPct, expectedPaymentDays } = asoEbiProject;
     const impact = calculateDepositImpact(costs, revenue, depositPct, expectedPaymentDays);
     const cashFlow = buildCashFlowProjection(costs, revenue, depositPct, expectedPaymentDays, 0);
 
-    const snapshot: ProjectFinancialSnapshot = {
+    const snapshot: ProjectFinancialSnapshot & components['schemas']['ProjectFinancialSnapshot'] = {
       depositAmount: impact.depositAmount,
       upfrontExposure: impact.upfrontExposure,
       cashGap: impact.cashGap,
@@ -60,10 +70,13 @@ export const handlers = [
       gapDate: findFirstCashGapDate(cashFlow),
     };
 
-    return HttpResponse.json(snapshot);
+    return jsonContract('/projects/{id}/financials', 'get', 200, snapshot);
   }),
 
-  http.get('/api/clients', () => HttpResponse.json([teniClient])),
+  http.get('/api/clients', () => {
+    const clients: components['schemas']['Client'][] = [teniClient];
+    return jsonContract('/clients', 'get', 200, clients);
+  }),
 
   http.get('/api/forecast', () => {
     const points = buildCashFlowProjection(
@@ -73,10 +86,13 @@ export const handlers = [
       asoEbiProject.expectedPaymentDays,
       0,
     );
-    return HttpResponse.json({ points });
+    return jsonContract('/forecast', 'get', 200, { points });
   }),
 
-  http.get('/api/feedback', () => HttpResponse.json(demoFeedback)),
+  http.get('/api/feedback', () => {
+    const feedback: components['schemas']['Feedback'][] = demoFeedback;
+    return jsonContract('/feedback', 'get', 200, feedback);
+  }),
 
-  http.get('/api/profile', () => HttpResponse.json(amaraProfile)),
+  http.get('/api/profile', () => jsonContract('/profile', 'get', 200, amaraProfile)),
 ];

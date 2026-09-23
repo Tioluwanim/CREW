@@ -1,5 +1,7 @@
-import type { ProjectFinancialSnapshot } from '../types';
+import type { components } from '../api/generated';
 import { API_BASE_URL as BASE } from '../lib/apiConfig';
+
+type ProjectFinancialSnapshot = components['schemas']['ProjectFinancialSnapshot'];
 
 /**
  * Fetches the full computed financial snapshot for a project. The shape

@@ -1,0 +1,358 @@
+openapi: 3.1.0
+info:
+  title: CREW API
+  version: 0.1.0
+  description: |
+    Backend contract for CREW's project cash-flow workspace. Monetary values
+    are represented as integer naira values at this boundary, matching the
+    current service and domain types.
+servers:
+  - url: /api
+    description: Current mock and same-origin API base
+tags:
+  - name: Projects
+  - name: Financials
+  - name: Clients
+  - name: Forecast
+  - name: Feedback
+  - name: Payments
+    description: Ecobank payment verification is not yet live.
+paths:
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [Projects]
+      responses:
+        '200':
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [Projects]
+      responses:
+        '200':
+          description: Projects visible to the current workspace
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Project'
+  /projects/{id}:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: getProject
+      tags: [Projects]
+      responses:
+        '200':
+          description: A project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /projects/{id}/financials:
+    parameters:
+      - $ref: '#/components/parameters/ProjectId'
+    get:
+      operationId: getProjectFinancials
+      tags: [Financials]
+      responses:
+        '200':
+          description: Computed financial snapshot for a project
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectFinancialSnapshot'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /clients:
+    get:
+      operationId: listClients
+      tags: [Clients]
+      responses:
+        '200':
+          description: Clients visible to the current workspace
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Client'
+  /forecast:
+    get:
+      operationId: getForecast
+      tags: [Forecast]
+      responses:
+        '200':
+          description: Projected cash-flow points
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForecastResponse'
+  /feedback:
+    get:
+      operationId: listFeedback
+      tags: [Feedback]
+      responses:
+        '200':
+          description: Feedback shown on the public landing page
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Feedback'
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [Projects]
+      responses:
+        '200':
+          description: Current creative profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreativeProfile'
+  /payments/verify:
+    post:
+      operationId: verifyEcobankPayment
+      tags: [Payments]
+      description: NOT YET LIVE. Intended Ecobank sandbox payment-verification endpoint.
+      x-status: not-yet-live
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentVerificationRequest'
+      responses:
+        '200':
+          description: NOT YET LIVE. Verification result from the payment rail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentVerificationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '502':
+          description: NOT YET LIVE. Payment provider unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /payments/{paymentId}:
+    parameters:
+      - name: paymentId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      operationId: getPaymentVerification
+      tags: [Payments]
+      description: NOT YET LIVE. Intended lookup for an Ecobank verification result.
+      x-status: not-yet-live
+      responses:
+        '200':
+          description: NOT YET LIVE. Payment verification result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentVerificationResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+components:
+  parameters:
+    ProjectId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    DashboardSummary:
+      type: object
+      required: [cashPosition, owed, dueThisWeek, activeProjects, cashGap]
+      properties:
+        cashPosition: { type: number }
+        owed: { type: number }
+        dueThisWeek: { type: number }
+        activeProjects: { type: integer }
+        cashGap: { type: number }
+    CreativeProfile:
+      type: object
+      required: [id, businessName, craft, location, ownerName, projectsCompleted, averageProjectValue, typicalDepositPct, averagePaymentDelayDays, averageMaterialOverrunPct, averageMarginPct]
+      properties:
+        id: { type: string }
+        businessName: { type: string }
+        craft: { type: string }
+        location: { type: string }
+        ownerName: { type: string }
+        projectsCompleted: { type: integer }
+        averageProjectValue: { type: number }
+        typicalDepositPct: { type: number }
+        averagePaymentDelayDays: { type: number }
+        averageMaterialOverrunPct: { type: number }
+        averageMarginPct: { type: number }
+    ProjectCost:
+      type: object
+      required: [id, label, category, amount, fundedBy, paidOnDay]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        category:
+          type: string
+          enum: [materials, labour, transport, other]
+        amount: { type: number }
+        fundedBy:
+          type: string
+          enum: [creator, client]
+        paidOnDay: { type: number }
+    ActivityEvent:
+      type: object
+      required: [id, label, timestamp]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        timestamp: { type: string, format: date-time }
+    Project:
+      type: object
+      required: [id, name, clientId, clientName, craft, revenue, depositPct, costs, expectedPaymentDays, status, createdAt, activity]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        clientId: { type: string }
+        clientName: { type: string }
+        craft: { type: string }
+        revenue: { type: number }
+        depositPct: { type: number }
+        costs:
+          type: array
+          items: { $ref: '#/components/schemas/ProjectCost' }
+        expectedPaymentDays: { type: number }
+        status:
+          type: string
+          enum: [active, awaiting_payment, completed]
+        createdAt: { type: string, format: date-time }
+        activity:
+          type: array
+          items: { $ref: '#/components/schemas/ActivityEvent' }
+    Client:
+      type: object
+      required: [id, name, projectIds, totalBilled, totalPaid, averagePaymentDays]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        projectIds:
+          type: array
+          items: { type: string }
+        totalBilled: { type: number }
+        totalPaid: { type: number }
+        averagePaymentDays: { type: number }
+    CashFlowPoint:
+      type: object
+      required: [label, date, projectedBalance, inflow, outflow]
+      properties:
+        label: { type: string }
+        date: { type: string, format: date }
+        projectedBalance: { type: number }
+        inflow: { type: number }
+        outflow: { type: number }
+    ForecastResponse:
+      type: object
+      required: [points]
+      properties:
+        points:
+          type: array
+          items: { $ref: '#/components/schemas/CashFlowPoint' }
+    DaysToCash:
+      oneOf:
+        - type: object
+          required: [status, days]
+          properties:
+            status: { const: planned }
+            days: { type: number }
+        - type: object
+          required: [status, daysSoFar]
+          properties:
+            status: { const: pending }
+            daysSoFar: { type: number }
+        - type: object
+          required: [status, days]
+          properties:
+            status: { const: complete }
+            days: { type: number }
+    ProjectFinancialSnapshot:
+      type: object
+      required: [depositAmount, upfrontExposure, cashGap, expectedProfit, profitMarginPct, daysToCash, cashFlow, gapDate]
+      properties:
+        depositAmount: { type: number }
+        upfrontExposure: { type: number }
+        cashGap: { type: number }
+        expectedProfit: { type: number }
+        profitMarginPct: { type: number }
+        daysToCash: { $ref: '#/components/schemas/DaysToCash' }
+        cashFlow:
+          type: array
+          items: { $ref: '#/components/schemas/CashFlowPoint' }
+        gapDate:
+          type: [string, 'null']
+          format: date
+    Feedback:
+      type: object
+      required: [id, name, craft, location, quote, avatar, verified, source, date]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        craft: { type: string }
+        location: { type: string }
+        quote: { type: string }
+        avatar: { type: string }
+        verified: { type: boolean }
+        source: { type: string }
+        date: { type: string, format: date-time }
+    PaymentVerificationRequest:
+      type: object
+      required: [paymentReference, amount, currency]
+      properties:
+        paymentReference: { type: string }
+        invoiceId: { type: string }
+        amount: { type: number }
+        currency: { type: string, const: NGN }
+    PaymentVerificationResponse:
+      type: object
+      required: [paymentReference, status, amount, currency]
+      properties:
+        paymentReference: { type: string }
+        status:
+          type: string
+          enum: [pending, verified, failed]
+        amount: { type: number }
+        currency: { type: string, const: NGN }
+        verifiedAt: { type: string, format: date-time }

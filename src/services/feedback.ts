@@ -1,5 +1,7 @@
-import type { Feedback } from '../types';
+import type { components } from '../api/generated';
 import { API_BASE_URL as BASE } from '../lib/apiConfig';
+type Feedback = components['schemas']['Feedback'];
+
 export async function getFeedback(): Promise<Feedback[]> {
   const res = await fetch(`${BASE}/feedback`);
   if (!res.ok) throw new Error('Failed to load feedback');

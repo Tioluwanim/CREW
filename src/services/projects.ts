@@ -1,4 +1,6 @@
-import type { Project } from '../types';
+import type { components } from '../api/generated';
+
+type Project = components['schemas']['Project'];
 
 // Thin service boundary. Today this talks to the MSW mock handlers under
 // /api/*; swapping to a real FastAPI backend later should only require
