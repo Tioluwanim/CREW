@@ -1,7 +1,3 @@
-import { readFileSync } from 'node:fs';
-import OpenAPIResponseValidator from 'openapi-response-validator';
-import { parse } from 'yaml';
-
 type Operation = {
   responses: Record<string, { content?: Record<string, { schema: unknown }> }>;
 };
@@ -11,15 +7,24 @@ type OpenApiDocument = {
   components?: { schemas?: Record<string, unknown> };
 };
 
-const document = parse(readFileSync(new URL('../../openapi.yaml', import.meta.url), 'utf8')) as OpenApiDocument;
+type ResponseValidator = { validateResponse: (status: string, response: unknown) => unknown };
 
-const validators = new Map<string, OpenAPIResponseValidator>();
+let documentPromise: Promise<OpenApiDocument> | undefined;
+const validators = new Map<string, ResponseValidator>();
 
-function getValidator(path: string, method: string) {
+async function loadDocument() {
+  documentPromise ??= Promise.all([import('node:fs'), import('yaml')]).then(([fs, yaml]) =>
+    yaml.parse(fs.readFileSync(`${process.cwd()}/openapi.yaml`, 'utf8')) as OpenApiDocument,
+  );
+  return documentPromise;
+}
+
+async function getValidator(path: string, method: string) {
   const key = `${method.toLowerCase()} ${path}`;
   const cached = validators.get(key);
   if (cached) return cached;
 
+  const document = await loadDocument();
   const operation = document.paths[path]?.[method.toLowerCase()];
   if (!operation) throw new Error(`No OpenAPI operation found for ${key}`);
 
@@ -29,6 +34,7 @@ function getValidator(path: string, method: string) {
       { schema: response.content?.['application/json']?.schema ?? {} },
     ]),
   );
+  const { default: OpenAPIResponseValidator } = await import('openapi-response-validator');
   const validator = new OpenAPIResponseValidator({
     responses,
     components: document.components,
@@ -37,8 +43,8 @@ function getValidator(path: string, method: string) {
   return validator;
 }
 
-export function validateResponse(path: string, method: string, status: number, body: unknown) {
-  const validationError = getValidator(path, method).validateResponse(String(status), body);
+export async function validateResponse(path: string, method: string, status: number, body: unknown) {
+  const validationError = (await getValidator(path, method)).validateResponse(String(status), body);
   if (validationError) {
     throw new Error(`${method.toUpperCase()} ${path} returned an invalid ${status} response: ${JSON.stringify(validationError)}`);
   }

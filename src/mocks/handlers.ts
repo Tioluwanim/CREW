@@ -12,8 +12,8 @@ import type { ProjectFinancialSnapshot } from '../types';
 import type { components } from '../api/generated';
 import { validateResponse } from './contract';
 
-const jsonContract = <T>(path: string, method: string, status: number, body: T) => {
-  validateResponse(path, method, status, body);
+const jsonContract = async <T>(path: string, method: string, status: number, body: T) => {
+  await validateResponse(path, method, status, body);
   return HttpResponse.json(body, { status });
 };
 
@@ -22,7 +22,7 @@ const jsonContract = <T>(path: string, method: string, status: number, body: T) 
 // numbers never disagree between "live" UI state and a fresh fetch.
 
 export const handlers = [
-  http.get('/api/dashboard', () => {
+  http.get('/api/dashboard', async () => {
     const impact = calculateDepositImpact(
       asoEbiProject.costs,
       asoEbiProject.revenue,
@@ -38,12 +38,12 @@ export const handlers = [
     });
   }),
 
-  http.get('/api/projects', () => {
+  http.get('/api/projects', async () => {
     const projects: components['schemas']['Project'][] = [asoEbiProject];
     return jsonContract('/projects', 'get', 200, projects);
   }),
 
-  http.get('/api/projects/:id', ({ params }) => {
+  http.get('/api/projects/:id', async ({ params }) => {
     if (params.id !== asoEbiProject.id) return jsonContract('/projects/{id}', 'get', 404, { error: 'not found' });
     return jsonContract('/projects/{id}', 'get', 200, asoEbiProject);
   }),
@@ -52,7 +52,7 @@ export const handlers = [
   // section 43b. The response shape here IS ProjectFinancialSnapshot;
   // every figure is a live call to lib/finance.ts, never a literal, so
   // this handler can never silently disagree with the calculation core.
-  http.get('/api/projects/:id/financials', ({ params }) => {
+  http.get('/api/projects/:id/financials', async ({ params }) => {
     if (params.id !== asoEbiProject.id) return jsonContract('/projects/{id}/financials', 'get', 404, { error: 'not found' });
 
     const { costs, revenue, depositPct, expectedPaymentDays } = asoEbiProject;
@@ -73,12 +73,12 @@ export const handlers = [
     return jsonContract('/projects/{id}/financials', 'get', 200, snapshot);
   }),
 
-  http.get('/api/clients', () => {
+  http.get('/api/clients', async () => {
     const clients: components['schemas']['Client'][] = [teniClient];
     return jsonContract('/clients', 'get', 200, clients);
   }),
 
-  http.get('/api/forecast', () => {
+  http.get('/api/forecast', async () => {
     const points = buildCashFlowProjection(
       asoEbiProject.costs,
       asoEbiProject.revenue,
@@ -89,10 +89,10 @@ export const handlers = [
     return jsonContract('/forecast', 'get', 200, { points });
   }),
 
-  http.get('/api/feedback', () => {
+  http.get('/api/feedback', async () => {
     const feedback: components['schemas']['Feedback'][] = demoFeedback;
     return jsonContract('/feedback', 'get', 200, feedback);
   }),
 
-  http.get('/api/profile', () => jsonContract('/profile', 'get', 200, amaraProfile)),
+  http.get('/api/profile', async () => jsonContract('/profile', 'get', 200, amaraProfile)),
 ];
