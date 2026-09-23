@@ -50,7 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {[...navItems, ...desktopExtraItems].map((item) => (
               <Link
                 key={item.to}
-                to={item.to}
+                href={item.to}
                 className={linkClass(item.to, item.end)}
               >
                 <item.icon size={17} strokeWidth={2} />
@@ -62,7 +62,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {desktopSecondaryItems.map((item) => (
               <Link
                 key={item.to}
-                to={item.to}
+                href={item.to}
                 className={secondaryLinkClass(item.to)}
               >
                 <item.icon size={16} strokeWidth={2} />
@@ -107,7 +107,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {navItems.map((item) => (
             <Link
               key={item.to}
-              to={item.to}
+              href={item.to}
               className={cn('flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium text-ink-500', (item.end ? pathname === item.to : pathname.startsWith(item.to)) && 'text-ink-900')}
             >
               <item.icon size={20} strokeWidth={2} />

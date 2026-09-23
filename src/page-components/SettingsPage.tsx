@@ -34,7 +34,7 @@ export function SettingsPage() {
             </div>
           );
           return section.to ? (
-            <Link key={section.label} to={section.to} className="block hover:bg-ink-900/[0.02]">
+            <Link key={section.label} href={section.to} className="block hover:bg-ink-900/[0.02]">
               {content}
             </Link>
           ) : (
