@@ -19,6 +19,7 @@ import {
   recommendMinimumSafeDeposit,
   sumCreatorFundedCosts,
 } from '../lib/finance';
+import { HERO_BEAT_RANGES } from '../lib/heroBeats';
 
 const HeroScene = lazy(() => import('../components/landing/HeroScene').then((m) => ({ default: m.HeroScene })));
 
@@ -46,17 +47,32 @@ export function LandingExperience() {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Scene 1 — cinematic opening. Text beats are the same 5 beats the R3F
-// scene animates against; both read the same scroll-progress value (see
-// useScrollProgress) so they can never drift out of lockstep.
+// Scene 1 — cinematic opening. Text beats read the same shared
+// HERO_BEAT_RANGES the R3F scene animates against (src/lib/heroBeats.ts),
+// so the two can never drift out of lockstep — previously they were two
+// separately-typed-out literal arrays that merely happened to agree.
+//
+// The arc now runs job -> costs -> the cash gap -> profit: the original
+// five beats ended on "But where did the money go?" with nothing
+// following it inside the hero itself — a hard cut straight to a dark
+// ledger section right after. The sixth beat below resolves that tension
+// with a real, computed number before the page ever cuts away.
 // ---------------------------------------------------------------------------
 
+const heroProfit = calculateExpectedProfit(asoEbiProject.costs, asoEbiProject.revenue);
+
 const BEAT_TEXTS = [
-  { text: 'You got the job.', range: [0, 0.2] as const },
-  { text: 'You bought the materials.', range: [0.2, 0.45] as const },
-  { text: 'You paid the tailor.', range: [0.45, 0.65] as const },
-  { text: 'You delivered.', range: [0.65, 0.8] as const },
-  { text: 'But where did the money go?', range: [0.8, 1] as const, big: true, holdAtEnd: true },
+  { text: 'You got the job.', range: HERO_BEAT_RANGES.job },
+  { text: 'You bought the materials.', range: HERO_BEAT_RANGES.materials },
+  { text: 'You paid the tailor.', range: HERO_BEAT_RANGES.costs },
+  { text: 'You delivered.', range: HERO_BEAT_RANGES.deliver },
+  { text: 'But where did the money go?', range: HERO_BEAT_RANGES.gap, big: true },
+  {
+    text: `${formatNaira(heroProfit)} in profit — CREW shows you when it lands.`,
+    range: HERO_BEAT_RANGES.resolve,
+    big: true,
+    holdAtEnd: true,
+  },
 ];
 
 function beatOpacity(progress: number, [start, end]: readonly [number, number], holdAtEnd = false) {
@@ -95,14 +111,14 @@ function StaticOpeningScene() {
   return (
     <section className="mx-auto flex min-h-[80vh] max-w-3xl flex-col justify-center px-6 py-24 sm:px-8" ref={ref}>
       <div className="space-y-3">
-        {BEAT_TEXTS.slice(0, 4).map((beat) => (
+        {BEAT_TEXTS.slice(0, 5).map((beat) => (
           <p key={beat.text} data-reveal className="font-display text-2xl text-ink-500 sm:text-3xl">
             {beat.text}
           </p>
         ))}
       </div>
       <p data-reveal className="mt-8 font-display text-4xl leading-tight text-ink-900 sm:text-6xl">
-        {BEAT_TEXTS[4].text}
+        {BEAT_TEXTS[5].text}
       </p>
     </section>
   );
@@ -131,11 +147,20 @@ function PinnedOpeningScene() {
                 {beat.text.split(' ').map((word, i, arr) => {
                   const wordOffset = i * 0.015;
                   const wordRange = [beat.range[0] + wordOffset, Math.min(beat.range[1], beat.range[0] + wordOffset + 0.14)] as const;
+                  const op = beatOpacity(progress, wordRange, beat.holdAtEnd);
                   return (
                     <span
                       key={i}
-                      className="inline-block"
-                      style={{ opacity: beatOpacity(progress, wordRange, beat.holdAtEnd) }}
+                      className="inline-block will-change-transform"
+                      style={{
+                        opacity: op,
+                        // Blur-and-rise on reveal reads as considered/editorial
+                        // rather than a plain opacity fade — cheap (filter +
+                        // transform only) and it's what the reduced-motion
+                        // fallback above intentionally skips.
+                        filter: `blur(${(1 - op) * 3}px)`,
+                        transform: `translateY(${(1 - op) * 6}px)`,
+                      }}
                     >
                       {word}
                       {i < arr.length - 1 ? '\u00A0' : ''}
@@ -147,12 +172,33 @@ function PinnedOpeningScene() {
               <p
                 key={beat.text}
                 className="absolute left-1/2 w-[min(86vw,36rem)] -translate-x-1/2 font-display text-[clamp(1.35rem,4vw,1.875rem)] leading-tight text-ink-500 text-balance"
-                style={{ opacity: beatOpacity(progress, beat.range, beat.holdAtEnd) }}
+                style={{
+                  opacity: beatOpacity(progress, beat.range, beat.holdAtEnd),
+                  filter: `blur(${(1 - beatOpacity(progress, beat.range, beat.holdAtEnd)) * 2.5}px)`,
+                }}
               >
                 {beat.text}
               </p>
             ),
           )}
+        </div>
+
+        {/* Scroll cue: at rest (progress ≈ 0) the scene has barely revealed itself yet
+            and there's no text on screen either (first beat hasn't faded in), so with
+            nothing prompting the visitor to scroll the opening can read as an empty
+            frame. Fades out over the first sliver of scroll. */}
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-8 z-10 flex flex-col items-center gap-2 sm:bottom-12"
+          style={{ opacity: Math.max(0, 1 - progress / 0.04) }}
+        >
+          <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-ink-500/70">Scroll</span>
+          <motion.span
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+            className="flex h-8 w-5 items-start justify-center rounded-full border border-ink-900/20 p-1"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-ink-900/40" />
+          </motion.span>
         </div>
       </div>
     </section>

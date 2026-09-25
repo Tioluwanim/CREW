@@ -13,13 +13,22 @@ import type { CopilotAction } from './copilot.types';
  * see AppShell) so it persists across route changes instead of being
  * re-created per page. Reads its current insight from CopilotContext,
  * which is fed by whichever screen is active.
+ *
+ * Always rendered now — previously this returned null whenever there was
+ * no proactive insight, which meant Copilot was unreachable for a
+ * free-text question unless something was already flagged. The avatar
+ * still visibly "pops" (see CopilotButton) when there's something worth
+ * surfacing; it's just no longer the only way in.
  */
 export function FloatingCopilot() {
   const [isOpen, setIsOpen] = useState(false);
-  const { insight } = useCopilotContext();
+  const { insight, messages, seedFromInsight, sendMessage } = useCopilotContext();
   const router = useRouter();
 
-  if (!insight) return null;
+  function handleOpen() {
+    seedFromInsight();
+    setIsOpen(true);
+  }
 
   function handleAction(action: CopilotAction) {
     switch (action.kind) {
@@ -47,9 +56,11 @@ export function FloatingCopilot() {
     >
       <div className="flex flex-col items-end gap-3">
         <AnimatePresence>
-          {isOpen && <CopilotPanel insight={insight} onClose={() => setIsOpen(false)} onAction={handleAction} />}
+          {isOpen && (
+            <CopilotPanel messages={messages} onClose={() => setIsOpen(false)} onSend={sendMessage} onAction={handleAction} />
+          )}
         </AnimatePresence>
-        {!isOpen && <CopilotButton insight={insight} isOpen={isOpen} onClick={() => setIsOpen(true)} />}
+        {!isOpen && <CopilotButton insight={insight} isOpen={isOpen} onClick={handleOpen} />}
       </div>
     </div>
   );

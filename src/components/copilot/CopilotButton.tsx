@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { CopilotAvatarMark } from './CopilotAvatarMark';
 import type { CopilotInsight } from './copilot.types';
 
 interface CopilotButtonProps {
@@ -11,10 +11,12 @@ interface CopilotButtonProps {
 }
 
 /**
- * The default, always-visible floating control. Compact when idle;
- * widens to surface a one-line insight when there's something worth
- * flagging (e.g. a cash gap). Never covers primary content or the
- * mobile bottom nav — layout offsets are handled by the parent.
+ * The default, always-visible floating control — an avatar, not a
+ * generic AI icon. Always reachable (even with nothing proactive to say)
+ * so the person can open it for a question at any time; widens and gets
+ * a slow breathing pulse specifically when there's something worth
+ * flagging (a cash gap, an invoice waiting on approval) so it visibly
+ * "pops in" rather than silently updating its label.
  */
 export function CopilotButton({ insight, isOpen, onClick }: CopilotButtonProps) {
   const hasInsight = Boolean(insight) && insight!.kind !== 'general';
@@ -25,19 +27,26 @@ export function CopilotButton({ insight, isOpen, onClick }: CopilotButtonProps) 
       onClick={onClick}
       aria-expanded={isOpen}
       aria-label={hasInsight ? `CREW Copilot: ${insight!.headline}` : 'Open CREW Copilot'}
-      className="pointer-events-auto flex max-w-[min(90vw,22rem)] items-center gap-2.5 rounded-full border border-ink-900/10 bg-ink-900 px-4 py-3 text-left text-bone-50 shadow-xl shadow-ink-900/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500"
+      className="pointer-events-auto flex max-w-[min(90vw,22rem)] items-center gap-2.5 rounded-full border border-ink-900/10 bg-ink-900 py-2 pl-2 pr-4 text-left text-bone-50 shadow-xl shadow-ink-900/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold-500"
       whileTap={{ scale: 0.97 }}
     >
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gold-500/90 text-ink-950">
-        <Sparkles size={13} strokeWidth={2.5} />
-      </span>
+      <motion.span
+        className="relative flex h-9 w-9 shrink-0 items-center justify-center"
+        animate={hasInsight ? { scale: [1, 1.07, 1] } : { scale: 1 }}
+        transition={hasInsight ? { duration: 2.2, repeat: Infinity, ease: 'easeInOut' } : undefined}
+      >
+        <CopilotAvatarMark size={36} />
+        {hasInsight && (
+          <span className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-thread-600 ring-2 ring-ink-900" aria-hidden />
+        )}
+      </motion.span>
       {hasInsight ? (
         <span className="flex flex-col overflow-hidden">
           <span className="text-[11px] font-medium uppercase tracking-wide text-bone-200/70">Copilot</span>
           <span className="truncate text-sm font-medium">{insight!.headline}</span>
         </span>
       ) : (
-        <span className="text-sm font-medium">Copilot — your money, explained.</span>
+        <span className="text-sm font-medium">Ask Copilot</span>
       )}
     </motion.button>
   );

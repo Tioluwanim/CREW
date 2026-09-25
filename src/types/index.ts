@@ -137,6 +137,14 @@ export interface CopilotAction {
   kind: 'simulate_deposit' | 'view_forecast' | 'review_invoice' | 'view_history' | 'show_gap';
 }
 
+export interface CopilotMessage {
+  id: string;
+  role: 'assistant' | 'user';
+  text: string;
+  actions?: CopilotAction[];
+  createdAt: string;
+}
+
 export interface Consent {
   projectActivity: boolean;
   paymentActivity: boolean;
@@ -187,4 +195,17 @@ export interface Feedback {
   verified: boolean;
   source: string;
   date: string;
+}
+
+export type NotificationKind = 'payment_verified' | 'invoice_viewed' | 'cash_gap' | 'project_created';
+
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  title: string;
+  description: string;
+  /** ISO timestamp; rendered as relative time ("2h ago") in the UI. */
+  occurredAt: string;
+  read: boolean;
+  href?: string;
 }

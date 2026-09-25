@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { LayoutDashboard, Briefcase, Users, Receipt, Wallet, TrendingUp, Plus, UserCircle, Sparkles, Settings } from 'lucide-react';
 import { CopilotSurface } from '../../features/copilot';
 import { CopilotProvider } from '../copilot/CopilotContext';
+import { NotificationsMenu, AccountMenu } from './HeaderMenus';
 import { cn } from '../../lib/cn';
 
 const navItems = [
@@ -79,12 +80,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Main content */}
         <div className="lg:pl-60">
-          {/* Mobile top bar: wordmark + settings access, since bottom nav stays to the core 4 items */}
+          {/* Desktop header: notifications + account. The sidebar carries
+              primary navigation, so this row only ever needs to hold the
+              two utility menus — kept slim rather than a full header bar. */}
+          <div className="hidden items-center justify-end gap-1 border-b border-ink-900/10 bg-bone-50/90 px-6 py-3 backdrop-blur lg:flex">
+            <NotificationsMenu />
+            <AccountMenu />
+          </div>
+
+          {/* Mobile top bar: wordmark + the same two utility menus. */}
           <div className="flex items-center justify-between border-b border-ink-900/10 bg-bone-50/90 px-4 py-3 backdrop-blur lg:hidden">
             <span className="font-display text-lg italic text-ink-900">CREW</span>
-            <Link href="/app/settings" aria-label="Settings" className="rounded-full p-1.5 text-ink-500 hover:bg-ink-900/5 hover:text-ink-900">
-              <Settings size={19} strokeWidth={2} />
-            </Link>
+            <div className="flex items-center gap-1">
+              <NotificationsMenu />
+              <AccountMenu />
+            </div>
           </div>
           <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-10">
             <AnimatePresence mode="wait">
