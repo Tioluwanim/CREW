@@ -39,3 +39,6 @@ Thumbs.db
 
 # Project Specific (Optional)
 *.log
+crew.db
+*.db
+openapi.generated.json

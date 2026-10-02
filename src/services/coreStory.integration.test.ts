@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
 import { server } from '../mocks/server';
 import { getProject } from './projects';
 import { getProjectFinancials } from './financials';
-import { asoEbiProject } from '../data/demoData';
+import { kemiProject } from '../data/demoData';
 import { calculateDepositImpact, calculateExpectedProfit, calculateProfitMargin } from '../lib/finance';
 
 // Section 43b's "mock-to-real swap contract" test: this exercises the
@@ -21,11 +21,11 @@ describe('service layer against the MSW mock (43b seam test)', () => {
   afterEach(() => server.resetHandlers());
   afterAll(() => server.close());
 
-  it('getProject returns the canonical Aso-ebi project over HTTP', async () => {
-    const project = await getProject('project-asoebi');
-    expect(project.name).toBe('Aso-ebi order');
-    expect(project.revenue).toBe(480_000);
-    expect(project.costs).toHaveLength(4);
+  it('getProject returns the canonical Kemi/Lumo project over HTTP', async () => {
+    const project = await getProject('project-lumo-deal');
+    expect(project.name).toBe('Lumo Skincare deal');
+    expect(project.revenue).toBe(300_000);
+    expect(project.costs).toHaveLength(3);
   });
 
   it('getProject 404s for an unknown id, and the service surfaces that as a thrown error', async () => {
@@ -33,9 +33,9 @@ describe('service layer against the MSW mock (43b seam test)', () => {
   });
 
   it('getProjectFinancials returns a snapshot that matches a direct lib/finance call on the same inputs', async () => {
-    const snapshot = await getProjectFinancials('project-asoebi');
+    const snapshot = await getProjectFinancials('project-lumo-deal');
 
-    const { costs, revenue, depositPct, expectedPaymentDays } = asoEbiProject;
+    const { costs, revenue, depositPct, expectedPaymentDays } = kemiProject;
     const expectedImpact = calculateDepositImpact(costs, revenue, depositPct, expectedPaymentDays);
     const expectedProfit = calculateExpectedProfit(costs, revenue);
     const expectedMargin = calculateProfitMargin(costs, revenue);
@@ -49,6 +49,6 @@ describe('service layer against the MSW mock (43b seam test)', () => {
     expect(snapshot.expectedProfit).toBe(expectedProfit);
     expect(snapshot.profitMarginPct).toBeCloseTo(expectedMargin, 5);
     expect(snapshot.cashFlow).toHaveLength(5);
-    expect(snapshot.daysToCash).toEqual({ status: 'planned', days: 18 });
+    expect(snapshot.daysToCash).toEqual({ status: 'planned', days: 10 });
   });
 });

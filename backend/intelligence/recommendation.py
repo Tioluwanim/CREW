@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Literal
 from intelligence.interfaces import ProjectDTO
-import money
+from intelligence import money
 
 RecommendationType = Literal['INCREASE_DEPOSIT', 'INCREASE_PRICE', 'CLIENT_RISK_WARNING']
 Severity = Literal['LOW', 'MEDIUM', 'HIGH']

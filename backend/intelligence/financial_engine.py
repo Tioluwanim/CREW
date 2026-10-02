@@ -1,5 +1,5 @@
 from intelligence.interfaces import ProjectDTO
-import money
+from intelligence import money
 
 class FinancialEngine:
     @staticmethod

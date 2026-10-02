@@ -17,10 +17,7 @@ export function DashboardOverview() {
       <DashboardMetrics {...model.metrics} activeCount={model.activeCount} />
       <ForecastPanel cashFlow={model.cashFlow} gapDate={model.gapDate} />
       <AttentionPanel
-        projectId={model.project.id}
-        projectName={model.project.name}
-        clientName={model.project.clientName}
-        cashGap={model.cashGap}
+        items={model.attentionItems}
         showAll={model.showAllAttention}
         onToggle={() => model.setShowAllAttention(!model.showAllAttention)}
       />

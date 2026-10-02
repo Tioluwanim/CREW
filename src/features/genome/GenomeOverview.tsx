@@ -1,13 +1,13 @@
 'use client';
 
 import { Card, StatLabel } from '../../components/ui/primitives';
-import { amaraProfile } from '../../data/demoData';
+import { kemiProfile } from '../../data/demoData';
 
 const metrics = [
-  { label: 'Typical deposit', value: `${amaraProfile.typicalDepositPct}%` },
-  { label: 'Average payment delay', value: `${amaraProfile.averagePaymentDelayDays} days` },
-  { label: 'Average material overrun', value: `${amaraProfile.averageMaterialOverrunPct}%` },
-  { label: 'Typical project margin', value: `${amaraProfile.averageMarginPct}%` },
+  { label: 'Typical deposit', value: `${kemiProfile.typicalDepositPct}%` },
+  { label: 'Average payment delay', value: `${kemiProfile.averagePaymentDelayDays} days` },
+  { label: 'Average material overrun', value: `${kemiProfile.averageMaterialOverrunPct}%` },
+  { label: 'Typical project margin', value: `${kemiProfile.averageMarginPct}%` },
 ];
 
 export function GenomeOverview() {

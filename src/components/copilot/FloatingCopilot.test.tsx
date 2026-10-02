@@ -85,4 +85,87 @@ describe('FloatingCopilot', () => {
 
     expect(screen.getAllByText(new RegExp(formatNaira(expectedProfit), 'i')).length).toBeGreaterThan(0);
   });
+
+  it('agent tool: drafts a scope card from pasted text, applying it only once accepted', () => {
+    render(
+      <CopilotProvider>
+        <FloatingCopilot />
+      </CopilotProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ask Copilot|CREW Copilot/i }));
+    // The tool chip pre-fills the input rather than sending immediately —
+    // it needs pasted text to work with.
+    fireEvent.click(screen.getByRole('button', { name: 'Draft scope from:' }));
+    const input = screen.getByLabelText('Ask Copilot');
+    expect(input).toHaveValue('Draft scope from: ');
+
+    fireEvent.change(input, { target: { value: 'Draft scope from: 4 TikTok videos, 1 Instagram reel' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+
+    expect(screen.getByText('4 videos — TikTok videos')).toBeInTheDocument();
+    expect(screen.getByText('1 reel — Instagram reel')).toBeInTheDocument();
+
+    // Not applied yet — proposing is not the same as doing. The
+    // project's real scope still has its original quantities (3 TikToks),
+    // not the drafted ones (4).
+    expect(useProjectStore.getState().project.scope?.[0]?.quantity).toBe(3);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use this scope' }));
+
+    const scope = useProjectStore.getState().project.scope;
+    expect(scope).toHaveLength(2);
+    expect(scope?.[0]).toMatchObject({ label: 'TikTok video', quantity: 4, unit: 'video', status: 'locked' });
+    expect(screen.getByText('Applied to Scope')).toBeInTheDocument();
+  });
+
+  it('agent tool: proposes a change-request classification, applied only on accept', () => {
+    render(
+      <CopilotProvider>
+        <FloatingCopilot />
+      </CopilotProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ask Copilot|CREW Copilot/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Classify this change request' }));
+
+    expect(screen.getByText('Suggested: Extra')).toBeInTheDocument();
+    expect(useProjectStore.getState().project.changeRequests?.[0].classification).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Classify as extra' }));
+
+    expect(useProjectStore.getState().project.changeRequests?.[0].classification).toBe('extra');
+    expect(screen.getByText('Classification applied')).toBeInTheDocument();
+  });
+
+  it('agent tool: drafts a client nudge for review, grounded in the real pending change request', () => {
+    render(
+      <CopilotProvider>
+        <FloatingCopilot />
+      </CopilotProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ask Copilot|CREW Copilot/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Draft a client nudge' }));
+
+    expect(screen.getByText(/One more TikTok video/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy message' }));
+    expect(screen.getByText('Copied to clipboard')).toBeInTheDocument();
+  });
+
+  it('agent tool: dismissing a proposal never applies it', () => {
+    render(
+      <CopilotProvider>
+        <FloatingCopilot />
+      </CopilotProvider>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Ask Copilot|CREW Copilot/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Classify this change request' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+
+    expect(useProjectStore.getState().project.changeRequests?.[0].classification).toBeNull();
+    expect(screen.getByText('Dismissed')).toBeInTheDocument();
+  });
 });

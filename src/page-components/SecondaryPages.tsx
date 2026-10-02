@@ -5,7 +5,7 @@ import { useCopilotRoute } from '../components/copilot/CopilotContext';
 import { Card, Button, Pill } from '../components/ui/primitives';
 import { EcobankBadge } from '../components/ui/EcobankBadge';
 import { formatNaira } from '../lib/money';
-import { clients, amaraProfile } from '../data/demoData';
+import { clients, kemiProfile } from '../data/demoData';
 import { ClientsOverview } from '../features/clients';
 import { InvoiceOverview } from '../features/invoices';
 import { ProfitOverview } from '../features/profit';

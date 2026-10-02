@@ -7,13 +7,15 @@ import { Button } from '../components/ui/primitives';
 import { cn } from '../lib/cn';
 import {
   CRAFTS,
+  EXPERIENCE_LEVELS,
   CHARGE_STYLES,
   DEPOSIT_OPTIONS,
   initialAnswers,
   type OnboardingAnswers,
 } from '../features/onboarding/types';
+import { getStarterTemplate } from '../features/onboarding/starterTemplates';
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 export function OnboardingPage() {
   const [step, setStep] = useState(1);
@@ -36,16 +38,43 @@ export function OnboardingPage() {
 
   const canContinue =
     (step === 1 && answers.craft !== null) ||
-    (step === 2 && answers.chargeStyle !== null) ||
-    (step === 3 && answers.typicalDeposit !== null && (answers.typicalDeposit !== 'custom' || answers.customDeposit !== '')) ||
-    (step === 4 && answers.startingCash !== '');
+    (step === 2 && answers.experience !== null) ||
+    (step === 3 && answers.chargeStyle !== null) ||
+    (step === 4 && answers.typicalDeposit !== null && (answers.typicalDeposit !== 'custom' || answers.customDeposit !== '')) ||
+    (step === 5 && answers.startingCash !== '');
 
   if (done) {
+    const starter = getStarterTemplate(answers);
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-bone-50 px-6 text-center">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-bone-50 px-6 py-12 text-center">
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
           <h1 className="font-display text-3xl text-ink-900 sm:text-4xl">Your workspace is ready.</h1>
           <p className="mt-2 text-sm text-ink-500">CREW is set up around how {answers.craft?.toLowerCase() ?? 'you'} actually work.</p>
+
+          {starter && (
+            <div className="mt-8 rounded-xl border border-ink-900/10 bg-white/60 p-5 text-left">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-ink-500">
+                A starter template, based on what you picked
+              </p>
+              <ul className="mb-4 space-y-1.5 text-sm text-ink-700">
+                {starter.scopeItems.map((item) => (
+                  <li key={item.label}>
+                    {item.quantity} {item.unit}
+                    {item.quantity > 1 ? 's' : ''} — {item.label}
+                    {item.quantity > 1 ? 's' : ''}
+                  </li>
+                ))}
+              </ul>
+              <div className="flex items-center justify-between border-t border-ink-900/10 pt-3">
+                <span className="text-sm text-ink-500">Suggested rate</span>
+                <span className="num text-sm font-medium text-ink-900">{starter.rateRangeLabel}</span>
+              </div>
+              <p className="mt-3 text-xs text-ink-400">
+                A starting point to edit, not a rating — nothing here scores or ranks you.
+              </p>
+            </div>
+          )}
+
           <Button className="mt-8" onClick={() => router.push('/app')}>
             Go to my workspace
           </Button>
@@ -71,12 +100,35 @@ export function OnboardingPage() {
           )}
 
           {step === 2 && (
+            <Step title="How long have you been doing this?">
+              <p className="mb-4 -mt-2 text-sm text-ink-500">
+                This just picks your starter templates below — it doesn't rate or score you.
+              </p>
+              <select
+                value={answers.experience ?? ''}
+                onChange={(e) => update('experience', e.target.value || null)}
+                aria-label="How long have you been doing this?"
+                className="w-full rounded-lg border border-ink-900/15 bg-white px-3 py-2.5 text-sm text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900"
+              >
+                <option value="" disabled>
+                  Select one
+                </option>
+                {EXPERIENCE_LEVELS.map((level) => (
+                  <option key={level} value={level}>
+                    {level}
+                  </option>
+                ))}
+              </select>
+            </Step>
+          )}
+
+          {step === 3 && (
             <Step title="How do you usually charge?">
               <OptionList options={CHARGE_STYLES} selected={answers.chargeStyle} onSelect={(v) => update('chargeStyle', v)} />
             </Step>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <Step title="What deposit do you usually request?">
               <div className="grid grid-cols-4 gap-2">
                 {DEPOSIT_OPTIONS.map((opt) => (
@@ -104,7 +156,7 @@ export function OnboardingPage() {
             </Step>
           )}
 
-          {step === 4 && (
+          {step === 5 && (
             <Step title="Typical cash available before a new project">
               <div className="flex items-center gap-2 rounded-lg border border-ink-900/15 px-3 py-2.5 focus-within:outline focus-within:outline-2 focus-within:outline-ink-900">
                 <span className="num text-sm text-ink-500">₦</span>

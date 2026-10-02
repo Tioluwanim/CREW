@@ -6,9 +6,12 @@
  * stopping them drifting apart on a future edit. This is the one place
  * those ranges are defined; both consumers import it.
  *
- * The arc is job -> costs -> cash flow (the gap) -> profit (the resolve),
- * matching the actual product story: a project is profitable on paper,
- * the risk is the timing of the cash, and CREW is what closes that gap.
+ * The arc (post-pivot): a brand DMs Kemi -> scope gets agreed -> the brand
+ * asks for more -> is that included or extra? (the tension beat) -> CREW
+ * makes the classification a two-tap decision instead of an argument (the
+ * resolve beat). The beat KEYS are kept as-is (job/materials/costs/
+ * deliver/gap/resolve) so the scene and text overlay's existing wiring
+ * doesn't need touching — only what each beat represents changed.
  */
 export const HERO_BEAT_RANGES = {
   job: [0, 0.14],

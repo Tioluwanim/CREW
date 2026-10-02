@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { Card, Pill } from '../../components/ui/primitives';
 import { EcobankBadge } from '../../components/ui/EcobankBadge';
-import { amaraProfile } from '../../data/demoData';
+import { kemiProfile } from '../../data/demoData';
 
 const sections = [
-  { label: 'Profile', desc: `${amaraProfile.ownerName} · ${amaraProfile.businessName}` },
+  { label: 'Profile', desc: `${kemiProfile.ownerName} · ${kemiProfile.businessName}` },
   { label: 'Business profile', desc: 'Craft, location, typical deposit', href: '/app/profile' },
   { label: 'Opportunities', desc: 'Financing, insurance — not connected', href: '/app/opportunities' },
   { label: 'Notifications', desc: 'Payment and invoice alerts' },

@@ -20,3 +20,20 @@ vi.mock('next/navigation', () => ({
 		return { id: id === 'projects' ? undefined : id };
 	},
 }));
+
+// jsdom doesn't implement matchMedia. GSAP's ScrollTrigger plugin calls it
+// at *import* time (see components/landing/ScrollProgressBar.tsx), so any
+// test that imports a module in that chain needs this polyfilled globally,
+// before that import executes — a per-test stub is too late.
+if (typeof window !== 'undefined' && !window.matchMedia) {
+	window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+		matches: false,
+		media: query,
+		onchange: null,
+		addListener: vi.fn(),
+		removeListener: vi.fn(),
+		addEventListener: vi.fn(),
+		removeEventListener: vi.fn(),
+		dispatchEvent: vi.fn(),
+	}));
+}

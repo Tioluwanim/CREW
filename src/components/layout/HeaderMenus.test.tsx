@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { NotificationsMenu, AccountMenu } from './HeaderMenus';
-import { amaraProfile } from '../../data/demoData';
+import { kemiProfile } from '../../data/demoData';
 import { demoNotifications } from '../../data/notifications';
 
 const unreadCount = demoNotifications.filter((n) => !n.read).length;
@@ -55,11 +55,11 @@ describe('AccountMenu', () => {
     render(<AccountMenu />);
 
     const trigger = screen.getByRole('button', { name: 'Account menu' });
-    expect(trigger).toHaveTextContent(amaraProfile.ownerName.charAt(0));
+    expect(trigger).toHaveTextContent(kemiProfile.ownerName.charAt(0));
 
     fireEvent.click(trigger);
 
-    expect(screen.getByText(amaraProfile.businessName)).toBeInTheDocument();
+    expect(screen.getByText(kemiProfile.businessName)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Business profile/i })).toHaveAttribute('href', '/app/profile');
     expect(screen.getByRole('link', { name: /Settings/i })).toHaveAttribute('href', '/app/settings');
     expect(screen.getByRole('link', { name: /Sign out/i })).toHaveAttribute('href', '/');

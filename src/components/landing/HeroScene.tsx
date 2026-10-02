@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, Environment } from '@react-three/drei';
 import * as THREE from 'three';
-import { asoEbiProject } from '../../data/demoData';
+import { kemiProject } from '../../data/demoData';
+import { kemiPersona } from '../../data/demoPersona';
 import { HERO_BEAT_RANGES as BEATS } from '../../lib/heroBeats';
 
 interface HeroSceneProps {
@@ -23,8 +24,8 @@ function easeOutCubic(value: number) {
  * easeOutCubic(0) is exactly 0, so anything scaled by a raw `reveal` value
  * is invisible at rest (progress = 0) — before the visitor has scrolled at
  * all, which is the very first thing they see. Floors the low end so the
- * job sheet and revenue marker are faintly present from first paint,
- * inviting the scroll rather than greeting it with an empty table.
+ * DM card and deal marker are faintly present from first paint, inviting
+ * the scroll rather than greeting it with an empty desk.
  */
 function easeOutCubicFloored(value: number, floor = 0.22) {
   return floor + easeOutCubic(value) * (1 - floor);
@@ -40,8 +41,9 @@ function sceneColor(hex: string, opacity: number) {
   return color;
 }
 
-/** Lerps between two hex colors — used to carry the gap marker and cash
- * thread from tension-red to resolved-green as the `resolve` beat plays. */
+/** Lerps between two hex colors — used to carry the decision marker and
+ * agreement thread from tension-red to resolved-green as the `resolve`
+ * beat plays. */
 function lerpColor(hexA: string, hexB: string, t: number) {
   return new THREE.Color(hexA).lerp(new THREE.Color(hexB), THREE.MathUtils.clamp(t, 0, 1));
 }
@@ -50,7 +52,28 @@ const THREAD_RED = '#8a2c2c';
 const VERIFIED_GREEN = '#2f6b4f';
 const GOLD = '#b8944f';
 
-function CuttingTable() {
+/**
+ * Flattens the canonical scope (demoPersona.ts) into one tile per
+ * deliverable — 3 TikTok + 2 Instagram — plus one extra, pending tile for
+ * the change request. Reading straight from kemiPersona rather than
+ * hardcoding "3 TikToks" a second time here, so the 3D scene can never
+ * quietly drift from the numbers the rest of the page reads from.
+ */
+function useScopeTiles() {
+  return useMemo(() => {
+    const scope = kemiProject.scope ?? kemiPersona.scope;
+    const tiles: { id: string; kind: 'tiktok' | 'instagram'; pending?: boolean }[] = [];
+    for (const item of scope) {
+      const kind: 'tiktok' | 'instagram' = item.unit.toLowerCase().includes('video') ? 'tiktok' : 'instagram';
+      for (let i = 0; i < item.quantity; i++) tiles.push({ id: `${item.id}-${i}`, kind });
+    }
+    const changeRequest = kemiProject.changeRequests?.[0] ?? kemiPersona.changeRequest;
+    if (changeRequest) tiles.push({ id: changeRequest.id, kind: 'tiktok', pending: true });
+    return tiles;
+  }, []);
+}
+
+function Desk() {
   return (
     <mesh position={[0, -0.18, -1.05]} receiveShadow>
       <boxGeometry args={[7.2, 4.2, 0.12]} />
@@ -59,8 +82,17 @@ function CuttingTable() {
   );
 }
 
-function ProjectSheet({ progress }: HeroSceneProps) {
+/**
+ * The opening beat: a DM notification card. Same rounded-card + header-
+ * rule + body-line construction the old "job sheet" used (proven to read
+ * well at this scale), restyled as a phone notification: a small circular
+ * avatar top-left, a red unread dot that fades once the scope is agreed
+ * (the `materials` beat), and body lines that condense into a single
+ * settled line once delivery is underway (`deliver`).
+ */
+function DMNotification({ progress }: HeroSceneProps) {
   const reveal = easeOutCubicFloored(clampProgress(progress, BEATS.job));
+  const agreed = smoothStep(clampProgress(progress, BEATS.materials));
   const deliver = smoothStep(clampProgress(progress, BEATS.deliver));
   const ref = useRef<THREE.Group>(null);
 
@@ -74,42 +106,51 @@ function ProjectSheet({ progress }: HeroSceneProps) {
   return (
     <group ref={ref} position={[-1.72, -0.82, -0.35]} scale={reveal * 0.82}>
       <mesh castShadow>
-        <boxGeometry args={[2.35, 1.45, 0.12]} />
+        <boxGeometry args={[2.1, 1.55, 0.12]} />
         <meshStandardMaterial color="#faf8f4" roughness={0.78} metalness={0.02} />
       </mesh>
-      {/* A thin thread-red rule under the header line — the "atelier ledger"
-          accent color, present from the first frame rather than only once
-          the gap beat introduces red. Small, but it's what keeps the scene
-          from reading as entirely gold/beige/gray before anything happens. */}
-      <mesh position={[0, 0.38, 0.081]}>
-        <boxGeometry args={[1.65, 0.02, 0.01]} />
-        <meshStandardMaterial color={THREAD_RED} roughness={0.6} />
+      {/* Circular avatar, top-left — "a brand" rather than "a person" — with
+          a small unread dot that fades out as the scope gets agreed. */}
+      <mesh position={[-0.78, 0.5, 0.08]} rotation={[Math.PI / 2, 0, 0]}>
+        <cylinderGeometry args={[0.18, 0.18, 0.02, 24]} />
+        <meshStandardMaterial color="#383f52" roughness={0.6} />
       </mesh>
-      <mesh position={[0, 0.32, 0.08]}>
-        <boxGeometry args={[1.65, 0.08, 0.025]} />
+      <mesh position={[-0.68, 0.62, 0.1]} scale={0.06 * Math.max(0, 1 - agreed)}>
+        <sphereGeometry args={[1, 16, 16]} />
+        <meshBasicMaterial color={THREAD_RED} transparent opacity={Math.max(0, 1 - agreed)} />
+      </mesh>
+      {/* Header rule — the "atelier ledger" gold accent, present from the
+          first frame rather than only once a later beat introduces color. */}
+      <mesh position={[0.15, 0.38, 0.081]}>
+        <boxGeometry args={[1.35, 0.02, 0.01]} />
         <meshStandardMaterial color={GOLD} roughness={0.6} metalness={0.15} />
       </mesh>
-      <mesh position={[-0.48, -0.02, 0.08]} scale={[1, 1 - deliver * 0.15, 1]}>
-        <boxGeometry args={[0.75, 0.08, 0.025]} />
+      {/* Message lines: two lines at rest ("3 TikToks, 2 IG posts, then:
+          can you add one more?"), condensing to one settled line once
+          delivery is underway. */}
+      <mesh position={[0.02, -0.02, 0.08]} scale={[1, 1 - deliver * 0.15, 1]}>
+        <boxGeometry args={[0.95, 0.08, 0.025]} />
         <meshStandardMaterial color="#383f52" roughness={0.7} />
       </mesh>
-      <mesh position={[0.42, -0.02, 0.08]} scale={[1, 1 - deliver * 0.15, 1]}>
-        <boxGeometry args={[0.55, 0.08, 0.025]} />
+      <mesh position={[0.42, -0.22, 0.08]} scale={[1, 1 - deliver * 0.15, 1]}>
+        <boxGeometry args={[0.35, 0.08, 0.025]} />
         <meshStandardMaterial color="#a7acb9" roughness={0.7} />
       </mesh>
-      <mesh position={[0, -0.38, 0.08]} scale={[1 + deliver * 0.15, 1, 1]}>
-        <boxGeometry args={[1.8, 0.045, 0.025]} />
+      <mesh position={[0.15, -0.42, 0.08]} scale={[1 + deliver * 0.15, 1, 1]}>
+        <boxGeometry args={[1.55, 0.045, 0.025]} />
         <meshStandardMaterial color="#d9d0c2" roughness={0.8} />
-      </mesh>
-      <mesh position={[-0.82, 0.48, 0.1]} rotation={[0, 0, -0.2]} castShadow>
-        <cylinderGeometry args={[0.055, 0.055, 0.08, 16]} />
-        <meshPhysicalMaterial color={GOLD} metalness={0.7} roughness={0.22} clearcoat={0.6} clearcoatRoughness={0.15} />
       </mesh>
     </group>
   );
 }
 
-function RevenueMarker({ progress }: HeroSceneProps) {
+/**
+ * The deal total. Same rotating-coin mechanic as before — still the right
+ * shape for "one number that matters" — but now visibly ticks up (a small
+ * scale "pop") the moment the change request resolves, from ₦300,000 to
+ * ₦330,000, rather than just sliding into a resting position.
+ */
+function DealMarker({ progress }: HeroSceneProps) {
   const reveal = easeOutCubicFloored(clampProgress(progress, BEATS.job));
   const separate = smoothStep(clampProgress(progress, BEATS.deliver));
   const gap = smoothStep(clampProgress(progress, BEATS.gap));
@@ -120,53 +161,96 @@ function RevenueMarker({ progress }: HeroSceneProps) {
     if (ref.current) ref.current.rotation.y += delta * 0.28;
   });
 
-  // Settles very slightly back toward center as the story resolves — a
-  // small, legible "things came back into balance" cue rather than being
-  // left stranded at its most-separated position forever.
   const x = -2.95 - separate * 0.22 - gap * 0.2 + resolve * 0.08;
+  // A brief bump right as the total updates — the "it just ticked up" cue.
+  const bump = 1 + Math.sin(resolve * Math.PI) * 0.1;
 
   return (
-    <mesh ref={ref} position={[x, -0.74, 0.15]} scale={reveal * 0.48} rotation={[Math.PI / 2.15, 0, 0]} castShadow>
+    <mesh ref={ref} position={[x, -0.74, 0.15]} scale={reveal * 0.48 * bump} rotation={[Math.PI / 2.15, 0, 0]} castShadow>
       <cylinderGeometry args={[0.7, 0.7, 0.15, 48]} />
       <meshPhysicalMaterial color={GOLD} metalness={0.55} roughness={0.28} clearcoat={0.55} clearcoatRoughness={0.2} />
     </mesh>
   );
 }
 
-function CostPacket({ amount, index, progress }: { amount: number; index: number; progress: number }) {
-  const wave = index < 2 ? BEATS.materials : BEATS.costs;
-  const staggeredStart = wave[0] + (index % 2) * 0.06;
+/**
+ * One deliverable tile — a locked TikTok/Instagram piece, or (the last
+ * one) the pending "one more video" ask. Locked tiles are solid from the
+ * moment they reveal. The pending tile starts as a red wireframe — visibly
+ * still just a question — and MATERIALIZES into a solid, verified-green
+ * tile as `resolve` plays, the same object throughout rather than a solid
+ * tile swapped in for a wireframe one.
+ */
+function ScopeTile({
+  tile,
+  index,
+  progress,
+}: {
+  tile: { id: string; kind: 'tiktok' | 'instagram'; pending?: boolean };
+  index: number;
+  progress: number;
+}) {
+  const wave = tile.pending ? BEATS.costs : BEATS.materials;
+  const staggeredStart = wave[0] + (index % 3) * 0.035;
   const reveal = easeOutCubic(clampProgress(progress, [staggeredStart, wave[1]]));
   const gap = smoothStep(clampProgress(progress, BEATS.gap));
   const resolve = smoothStep(clampProgress(progress, BEATS.resolve));
-  const maxAmount = Math.max(...asoEbiProject.costs.map((cost) => cost.amount));
-  const size = 0.34 + (amount / maxAmount) * 0.32;
-  const y = 0.25 - index * 0.42;
-  const x = 2.08 + gap * 0.65 - resolve * 0.15;
-  const color = index < 2 ? '#383f52' : '#6b7286';
-  // Dims during the gap (money's tied up, uncertain), recovers full
-  // presence once resolved (accounted for, not lost).
-  const dim = gap * 0.35 * (1 - resolve);
+
+  const portrait = tile.kind === 'tiktok';
+  const width = portrait ? 0.26 : 0.34;
+  const height = portrait ? 0.4 : 0.34;
+  const row = Math.floor(index / 3);
+  const col = index % 3;
+  const x = 1.62 + col * 0.36;
+  const y = 0.22 - row * 0.46;
+  const z = 0.1 + (tile.pending ? gap * 0.12 : 0);
+  const bump = tile.pending ? 1 + Math.sin(resolve * Math.PI) * 0.08 : 1;
 
   return (
-    <group position={[x, y, 0.1]} scale={reveal}>
-      <mesh rotation={[0, 0, index % 2 === 0 ? -0.06 : 0.06]} castShadow>
-        <boxGeometry args={[size, 0.28, 0.18]} />
-        <meshStandardMaterial color={sceneColor(color, 1 - dim)} roughness={0.72} />
-      </mesh>
-      <mesh position={[-size * 0.2, 0, 0.1]}>
-        <boxGeometry args={[size * 0.45, 0.035, 0.02]} />
-        <meshStandardMaterial color="#d9d0c2" roughness={0.8} />
-      </mesh>
-      <mesh position={[size * 0.22, 0.11, 0.14]}>
-        <cylinderGeometry args={[0.045, 0.045, 0.08, 14]} />
-        <meshPhysicalMaterial color={GOLD} metalness={0.6} roughness={0.28} clearcoat={0.5} />
-      </mesh>
+    <group position={[x, y, z]} scale={reveal * bump}>
+      {tile.pending ? (
+        <>
+          {/* Still just an ask — red wireframe, nothing agreed yet. */}
+          <mesh rotation={[0, 0, 0.03]}>
+            <boxGeometry args={[width, height, 0.04]} />
+            <meshBasicMaterial color={THREAD_RED} wireframe transparent opacity={Math.max(0, (1 - resolve) * 0.9)} />
+          </mesh>
+          {/* Solidifies into a real, agreed deliverable once both sides approve. */}
+          <mesh rotation={[0, 0, 0.03]}>
+            <boxGeometry args={[width, height, 0.04]} />
+            <meshStandardMaterial color={VERIFIED_GREEN} roughness={0.5} transparent opacity={resolve} />
+          </mesh>
+        </>
+      ) : (
+        <mesh rotation={[0, 0, index % 2 === 0 ? -0.03 : 0.03]} castShadow>
+          <boxGeometry args={[width, height, 0.05]} />
+          <meshStandardMaterial color={sceneColor('#262b39', 1 - gap * 0.2)} roughness={0.65} />
+        </mesh>
+      )}
+      {/* Kind mark: a play-triangle for a TikTok, a lens-ring for an
+          Instagram post — small, abstract, not a literal logo. */}
+      {portrait ? (
+        <mesh position={[0, 0, 0.045]} rotation={[Math.PI / 2, 0, Math.PI / 2]}>
+          <coneGeometry args={[0.045, 0.09, 3]} />
+          <meshStandardMaterial color={GOLD} metalness={0.5} roughness={0.3} />
+        </mesh>
+      ) : (
+        <mesh position={[0, 0, 0.045]}>
+          <torusGeometry args={[0.07, 0.018, 12, 24]} />
+          <meshStandardMaterial color={GOLD} metalness={0.5} roughness={0.3} />
+        </mesh>
+      )}
     </group>
   );
 }
 
-function CashThread({ progress }: HeroSceneProps) {
+/**
+ * The thread connecting the DM to the settled deal. Same curve mechanic
+ * as before (still the right shape for "a thing running through the
+ * whole story"): gold at rest, tension-red while the ask is unresolved,
+ * lerping to verified-green as `resolve` plays.
+ */
+function AgreementThread({ progress }: HeroSceneProps) {
   const gap = smoothStep(clampProgress(progress, BEATS.gap));
   const deliver = smoothStep(clampProgress(progress, BEATS.deliver));
   const resolve = smoothStep(clampProgress(progress, BEATS.resolve));
@@ -177,8 +261,8 @@ function CashThread({ progress }: HeroSceneProps) {
       new THREE.Vector3(-1.35, -0.7 + deliver * 0.08, 0.25),
       new THREE.Vector3(0.55, -0.7 - gap * 0.32 * (1 - resolve * 0.7), 0.25),
       new THREE.Vector3(1.85 + gap * 0.55, -0.7 - gap * 0.32 * (1 - resolve * 0.7), 0.25),
-      // Fifth point: only pulls up into view as `resolve` advances, so the
-      // line visibly climbs back toward the baseline — the "recovery" beat.
+      // Only pulls up into view as `resolve` advances, so the line visibly
+      // climbs back toward the baseline — the "settled" beat.
       new THREE.Vector3(2.9 + gap * 0.55, -0.7 - gap * 0.32 * (1 - resolve), 0.25),
     ]);
     return curve.getPoints(48);
@@ -198,12 +282,13 @@ function CashThread({ progress }: HeroSceneProps) {
 }
 
 /**
- * The tension/resolution beat. During `gap` it grows into a red marker —
- * the cash-gap warning. During `resolve` the SAME object eases down and
- * shifts to verified-green, so the resolution reads as "this settled,"
- * not as a second, disconnected "good news" prop appearing from nowhere.
+ * The tension/resolution beat — "was that included, or extra?" During
+ * `gap` it grows into a red marker (the open question). During `resolve`
+ * the SAME object eases down and shifts to verified-green (the
+ * classification is settled), so the resolution reads as "this got
+ * decided," not as a second, disconnected prop appearing from nowhere.
  */
-function GapMarker({ progress }: HeroSceneProps) {
+function DecisionMarker({ progress }: HeroSceneProps) {
   const tension = smoothStep(clampProgress(progress, BEATS.gap));
   const resolve = smoothStep(clampProgress(progress, BEATS.resolve));
   const height = (0.12 + tension * 1.45) * (1 - resolve * 0.42);
@@ -237,9 +322,8 @@ function GapMarker({ progress }: HeroSceneProps) {
  * Scroll-tied camera dolly: a calm establishing distance at rest, a slow
  * push-in through the materials/costs/deliver beats (raises stakes), and
  * a gentle pull-back with a small upward drift during `resolve` (an
- * exhale). A camera that never moves across a five/six-part story is one
- * of the more common reasons a "cinematic" scroll piece still reads as
- * static — this is the one structural motion change in this pass.
+ * exhale). Unchanged from the pre-pivot version — a camera move like this
+ * is about pacing a story, not about which story it is.
  */
 function CameraRig({ progress, compact }: { progress: number; compact: boolean }) {
   const { camera } = useThree();
@@ -270,13 +354,15 @@ function CameraRig({ progress, compact }: { progress: number; compact: boolean }
 }
 
 function Scene({ progress, compact }: HeroSceneProps & { compact: boolean }) {
+  const scopeTiles = useScopeTiles();
+
   return (
     <>
-      {/* Lower ambient than before: flat, high ambient light is a common
-          reason a scene reads as "muted" or without real form — it washes
-          out the shading that gives objects dimension. A single clear key
-          light plus a soft cool fill plus a low warm rim gives the gold
-          pieces something to actually catch. */}
+      {/* Lower ambient than a flat scene would use: high ambient light is a
+          common reason a scene reads as "muted" or without real form — it
+          washes out the shading that gives objects dimension. A single
+          clear key light plus a soft cool fill plus a low warm rim gives
+          the gold pieces something to actually catch. */}
       <ambientLight intensity={0.38} />
       <directionalLight position={[3, 5, 4]} intensity={1.6} color="#fffaf0" castShadow shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[-3, 1.5, 2]} intensity={0.3} color="#dfe6f0" />
@@ -284,21 +370,21 @@ function Scene({ progress, compact }: HeroSceneProps & { compact: boolean }) {
 
       <CameraRig progress={progress} compact={compact} />
 
-      <CuttingTable />
-      <ProjectSheet progress={progress} />
-      <RevenueMarker progress={progress} />
-      {asoEbiProject.costs.map((cost, index) => (
-        <CostPacket key={cost.id} amount={cost.amount} index={index} progress={progress} />
+      <Desk />
+      <DMNotification progress={progress} />
+      <DealMarker progress={progress} />
+      {scopeTiles.map((tile, index) => (
+        <ScopeTile key={tile.id} tile={tile} index={index} progress={progress} />
       ))}
-      <CashThread progress={progress} />
-      <GapMarker progress={progress} />
+      <AgreementThread progress={progress} />
+      <DecisionMarker progress={progress} />
 
       {/* Grounds the objects with soft contact shadows — a cheap, reliable
           depth cue that reads as "considered" without needing a full HDRI
           pass. Environment adds real reflections onto the gold clearcoat
-          materials (the coin, the seal, the packet clasps) so they read as
-          glossy/premium rather than flat-shaded; both degrade gracefully
-          (Suspense) if their assets are slow to arrive. */}
+          materials (the coin, the play-marks, the lens-rings) so they read
+          as glossy/premium rather than flat-shaded; both degrade
+          gracefully (Suspense) if their assets are slow to arrive. */}
       <ContactShadows position={[0, -0.95, 0]} opacity={0.35} scale={8} blur={2.4} far={2} />
       <Suspense fallback={null}>
         <Environment preset="studio" environmentIntensity={0.5} />

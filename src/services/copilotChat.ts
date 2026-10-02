@@ -1,4 +1,4 @@
-import type { CopilotAction, DaysToCashResult, PaymentStatus, Project } from '../types';
+import type { CopilotAction, CopilotClassificationProposal, CopilotNudgeProposal, CopilotProposal, CopilotScopeProposal, DaysToCashResult, PaymentStatus, Project } from '../types';
 import { formatNaira } from '../lib/money';
 import { recommendMinimumSafeDeposit } from '../lib/finance';
 
@@ -25,7 +25,7 @@ export interface CopilotChatContext {
   profitMargin: number;
   gapDate: string | null;
   daysToCashLabel: string;
-  /** Genome-style workspace stats (amaraProfile in the demo data) — the
+  /** Genome-style workspace stats (kemiProfile in the demo data) — the
    * only place this chat draws on something other than the current
    * project's own numbers, and still always a real stated figure, never
    * an inference the chat made up. */
@@ -37,6 +37,98 @@ export interface CopilotChatContext {
 export interface CopilotChatAnswer {
   text: string;
   actions?: CopilotAction[];
+  proposal?: CopilotProposal;
+}
+
+// ---------------------------------------------------------------------------
+// Agent tools — each one DRAFTS something and returns it as a proposal; none
+// of them writes to the project themselves. CopilotContext.resolveProposal
+// is the only place a proposal actually gets applied, and only once the
+// person accepts it (see CopilotPanel's proposal rendering).
+// ---------------------------------------------------------------------------
+
+/**
+ * Heuristic "number + thing" extractor — deliberately simple (this is a
+ * demo tool, not an NLP pipeline): splits pasted text on commas, "and",
+ * and newlines, and for any clause shaped like "3 TikTok videos" pulls out
+ * the quantity and a singular label/unit. Clauses that don't match that
+ * shape are silently skipped rather than guessed at.
+ */
+export function draftScopeFromText(pasted: string): CopilotScopeProposal {
+  const clauses = pasted
+    .split(/,|\n|\band\b/gi)
+    .map((c) => c.trim())
+    .filter(Boolean);
+
+  const items: CopilotScopeProposal['items'] = [];
+  clauses.forEach((clause, i) => {
+    const match = clause.match(/^(\d+)\s+(.+?)[.\s]*$/);
+    if (!match) return;
+    const quantity = Number.parseInt(match[1], 10);
+    const words = match[2].split(/\s+/);
+    const lastWord = words[words.length - 1].toLowerCase();
+    const singularLastWord = lastWord.endsWith('s') && lastWord.length > 3 ? lastWord.slice(0, -1) : lastWord;
+    const label = [...words.slice(0, -1), singularLastWord].join(' ');
+    items.push({ id: `draft-scope-${i}`, label, quantity, unit: singularLastWord });
+  });
+
+  return { kind: 'scope', items };
+}
+
+/**
+ * Proposes a classification for a pending, unclassified change request.
+ * The reasoning is grounded in real project numbers (the price impact
+ * already stated on the request, the size of the locked scope) — never
+ * an invented justification.
+ */
+export function proposeChangeRequestClassification(project: Project): CopilotClassificationProposal | null {
+  const pending = project.changeRequests?.find((cr) => cr.status === 'pending' && !cr.classification);
+  if (!pending) return null;
+
+  const lockedCount = (project.scope ?? []).filter((item) => item.status === 'locked').reduce((sum, item) => sum + item.quantity, 0);
+
+  return {
+    kind: 'classification',
+    changeRequestId: pending.id,
+    classification: 'extra',
+    reason:
+      lockedCount > 0
+        ? `"${pending.label}" would add to the ${lockedCount} deliverables you already locked in — that reads as work beyond the original scope, not something already covered. At ${formatNaira(pending.priceImpact)}, it's in line with what you charge per piece.`
+        : `"${pending.label}" isn't part of any scope logged on this project yet, so it reads as new, additional work rather than something already included.`,
+  };
+}
+
+/**
+ * Drafts a short client message. Prioritizes the most pressing open
+ * thread on the project (a pending change request, then a balance due),
+ * and otherwise falls back to a plain check-in — always built from real
+ * project fields, never a canned line with the name swapped in.
+ */
+export function draftClientNudge(ctx: CopilotChatContext): CopilotNudgeProposal {
+  const pending = ctx.project.changeRequests?.find((cr) => cr.status === 'pending');
+  if (pending && pending.classification === 'extra') {
+    return {
+      kind: 'nudge',
+      message: `Hi ${ctx.project.clientName}, following up on "${pending.label}" — I've classified it as extra work at ${formatNaira(pending.priceImpact)}. Let me know if that works so I can get started.`,
+    };
+  }
+  if (pending) {
+    return {
+      kind: 'nudge',
+      message: `Hi ${ctx.project.clientName}, quick one — following up on "${pending.label}" so we can lock in whether it's part of the original scope or something extra.`,
+    };
+  }
+  if (ctx.paymentStatus !== 'verified') {
+    const balance = ctx.project.revenue - ctx.depositAmount;
+    return {
+      kind: 'nudge',
+      message: `Hi ${ctx.project.clientName}, just a friendly note that the ${formatNaira(balance)} balance on ${ctx.project.name} is due once delivery is confirmed. Let me know if you have any questions!`,
+    };
+  }
+  return {
+    kind: 'nudge',
+    message: `Hi ${ctx.project.clientName}, thanks again for working with me on ${ctx.project.name} — let me know if there's anything else you need!`,
+  };
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -45,6 +137,8 @@ const SUGGESTED_QUESTIONS = [
   "How's my profit looking?",
   'What deposit is safest?',
 ] as const;
+
+const TOOL_PROMPTS = ['Draft scope from: ', 'Classify this change request', 'Draft a client nudge'] as const;
 
 /**
  * Intent-matches a free-text question against a small set of real
@@ -60,7 +154,32 @@ const SUGGESTED_QUESTIONS = [
  * backend call later changes nothing at the call site.
  */
 export function answerCopilotQuestion(question: string, ctx: CopilotChatContext): CopilotChatAnswer {
-  const q = question.toLowerCase();
+  const raw = question.trim();
+  const q = raw.toLowerCase();
+
+  // --- Agent tools: propose, human confirms — checked before the plain
+  // Q&A matchers below, since these are exact tool invocations rather
+  // than open financial questions. Nothing here writes to the project;
+  // see CopilotContext.resolveProposal for the only place that happens,
+  // and only once the person explicitly accepts. ---
+  const scopeMatch = raw.match(/^draft scope(?: card)? from:?\s*(.+)$/is);
+  if (scopeMatch) {
+    const proposal = draftScopeFromText(scopeMatch[1]);
+    return proposal.items.length > 0
+      ? { text: "Here's a draft scope card from that — check it over before using it.", proposal }
+      : { text: 'I couldn\'t find any "number + item" pieces in that text — try something like "3 TikTok videos, 2 Instagram posts".' };
+  }
+
+  if (/classify.*change request/.test(q)) {
+    const proposal = proposeChangeRequestClassification(ctx.project);
+    return proposal
+      ? { text: 'Here\'s my read on this one — take a look before deciding.', proposal }
+      : { text: "There's no unclassified change request waiting on this project right now." };
+  }
+
+  if (/draft.*(nudge|reminder|follow[- ]?up)/.test(q)) {
+    return { text: 'Here\'s a draft — edit it however you like before sending.', proposal: draftClientNudge(ctx) };
+  }
 
   if (ctx.paymentStatus === 'verified') {
     if (/profit|margin|make|earn/.test(q)) {
@@ -147,4 +266,14 @@ export function answerCopilotQuestion(question: string, ctx: CopilotChatContext)
 
 export function suggestedCopilotQuestions(): readonly string[] {
   return SUGGESTED_QUESTIONS;
+}
+
+/**
+ * The three agent tools, as chat-input prompts. "Draft scope from: " is
+ * meant to be completed with pasted text rather than sent as-is — see
+ * CopilotPanel, which fills the input and focuses it instead of sending
+ * immediately for that one prompt specifically.
+ */
+export function suggestedCopilotTools(): readonly string[] {
+  return TOOL_PROMPTS;
 }

@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { asoEbiProject, teniClient, demoFeedback, amaraProfile } from '../data/demoData';
+import { kemiProject, lumoClient, demoFeedback, kemiProfile } from '../data/demoData';
 import {
   calculateDepositImpact,
   calculateExpectedProfit,
@@ -24,10 +24,10 @@ const jsonContract = async <T>(path: string, method: string, status: number, bod
 export const handlers = [
   http.get('/api/dashboard', async () => {
     const impact = calculateDepositImpact(
-      asoEbiProject.costs,
-      asoEbiProject.revenue,
-      asoEbiProject.depositPct,
-      asoEbiProject.expectedPaymentDays,
+      kemiProject.costs,
+      kemiProject.revenue,
+      kemiProject.depositPct,
+      kemiProject.expectedPaymentDays,
     );
     return jsonContract('/dashboard', 'get', 200, {
       cashPosition: 324_500,
@@ -39,13 +39,13 @@ export const handlers = [
   }),
 
   http.get('/api/projects', async () => {
-    const projects: components['schemas']['Project'][] = [asoEbiProject];
+    const projects: components['schemas']['Project'][] = [kemiProject];
     return jsonContract('/projects', 'get', 200, projects);
   }),
 
   http.get('/api/projects/:id', async ({ params }) => {
-    if (params.id !== asoEbiProject.id) return jsonContract('/projects/{id}', 'get', 404, { error: 'not found' });
-    return jsonContract('/projects/{id}', 'get', 200, asoEbiProject);
+    if (params.id !== kemiProject.id) return jsonContract('/projects/{id}', 'get', 404, { error: 'not found' });
+    return jsonContract('/projects/{id}', 'get', 200, kemiProject);
   }),
 
   // The financial-snapshot endpoint — see services/financials.ts and
@@ -53,9 +53,9 @@ export const handlers = [
   // every figure is a live call to lib/finance.ts, never a literal, so
   // this handler can never silently disagree with the calculation core.
   http.get('/api/projects/:id/financials', async ({ params }) => {
-    if (params.id !== asoEbiProject.id) return jsonContract('/projects/{id}/financials', 'get', 404, { error: 'not found' });
+    if (params.id !== kemiProject.id) return jsonContract('/projects/{id}/financials', 'get', 404, { error: 'not found' });
 
-    const { costs, revenue, depositPct, expectedPaymentDays } = asoEbiProject;
+    const { costs, revenue, depositPct, expectedPaymentDays } = kemiProject;
     const impact = calculateDepositImpact(costs, revenue, depositPct, expectedPaymentDays);
     const cashFlow = buildCashFlowProjection(costs, revenue, depositPct, expectedPaymentDays, 0);
 
@@ -74,16 +74,16 @@ export const handlers = [
   }),
 
   http.get('/api/clients', async () => {
-    const clients: components['schemas']['Client'][] = [teniClient];
+    const clients: components['schemas']['Client'][] = [lumoClient];
     return jsonContract('/clients', 'get', 200, clients);
   }),
 
   http.get('/api/forecast', async () => {
     const points = buildCashFlowProjection(
-      asoEbiProject.costs,
-      asoEbiProject.revenue,
-      asoEbiProject.depositPct,
-      asoEbiProject.expectedPaymentDays,
+      kemiProject.costs,
+      kemiProject.revenue,
+      kemiProject.depositPct,
+      kemiProject.expectedPaymentDays,
       0,
     );
     return jsonContract('/forecast', 'get', 200, { points });
@@ -94,5 +94,5 @@ export const handlers = [
     return jsonContract('/feedback', 'get', 200, feedback);
   }),
 
-  http.get('/api/profile', async () => jsonContract('/profile', 'get', 200, amaraProfile)),
+  http.get('/api/profile', async () => jsonContract('/profile', 'get', 200, kemiProfile)),
 ];

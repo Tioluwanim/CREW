@@ -1,43 +1,66 @@
-import type { ProjectCost } from '../types';
+import type { ChangeRequest, ProjectCost, ScopeItem } from '../types';
 
 // ---------------------------------------------------------------------------
-// CANONICAL DEMO DATA — SINGLE SOURCE OF TRUTH (section 1b)
+// CANONICAL DEMO DATA — SINGLE SOURCE OF TRUTH
 //
 // Every part of this build — the landing page, the interactive demo, the
-// /app dashboard seed state, onboarding — imports Amara's numbers from
-// here. Nothing hardcodes them a second time.
+// /app dashboard seed state, onboarding — imports Kemi's numbers from here.
+// Nothing hardcodes them a second time.
 //
-// This file holds RAW INPUTS ONLY: price, costs (with who actually funds
-// each one and when it's paid), deposit %, and the expected payment
-// window. Every derived number (upfront exposure, expected profit, days
-// to cash, cash gap) is computed by the functions in lib/finance.ts —
-// never hardcoded alongside these inputs. That split is what makes it
-// possible to prove, to a technical judge, that the numbers on screen are
-// computed, not typed in twice.
+// PIVOT NOTE: this replaces the previous fashion-designer persona (Amara
+// Studio / Aso-ebi order) entirely, per the confirmed product pivot to a
+// content-creator/brand-deal story. One canonical persona lives here — do
+// not add a second "canonical" persona file; that exact ambiguity (two
+// different numbers for "the demo project") has already caused drift once
+// in this repo's history.
 //
-// UNRECONCILED — READ BEFORE CHANGING THESE NUMBERS:
-// No backend financial-engine spec, DTO file, or hand-computed test case
-// set (e.g. an intelligence-layer test suite with its own "10 outfits,
-// ₦900,000" persona) exists in this repository/session. These are the
-// frontend's own numbers, not verified against a backend. If a backend
-// spec exists elsewhere, its numbers are canonical instead — replace the
-// values below with those, not the other way around, and do not invent a
-// second "Aso-ebi order" persona to reconcile them.
+// This file holds RAW INPUTS ONLY: price, scope, costs (with who actually
+// funds each one and when it's paid), deposit %, expected payment window,
+// and the one change request that drives the hero interaction. Every
+// derived number (upfront exposure, expected profit, days to cash, cash
+// gap) is computed by lib/finance.ts — never hardcoded alongside these.
+//
+// DRAFT FIGURES — not researched real-world rates. Flag for the team to
+// sanity-check before this goes out as a real demo.
 // ---------------------------------------------------------------------------
 
-export const asoEbiCosts: ProjectCost[] = [
-  { id: 'cost-materials', label: 'Materials', category: 'materials', amount: 210_000, fundedBy: 'creator', paidOnDay: 0 },
-  { id: 'cost-labour', label: 'Labour', category: 'labour', amount: 80_000, fundedBy: 'creator', paidOnDay: 0 },
-  { id: 'cost-transport', label: 'Transport', category: 'transport', amount: 20_000, fundedBy: 'creator', paidOnDay: 0 },
-  { id: 'cost-other', label: 'Other costs', category: 'other', amount: 15_000, fundedBy: 'creator', paidOnDay: 0 },
+export const kemiScope: ScopeItem[] = [
+  { id: 'scope-tiktok', label: 'TikTok video', quantity: 3, unit: 'video', status: 'locked' },
+  { id: 'scope-ig', label: 'Instagram post', quantity: 2, unit: 'post', status: 'locked' },
 ];
 
-export const asoEbiPersona = {
-  projectName: 'Aso-ebi order',
-  clientName: 'Teni',
-  craft: 'Fashion Designer',
-  price: 480_000,
-  costs: asoEbiCosts,
+export const kemiCosts: ProjectCost[] = [
+  { id: 'cost-editor', label: 'Video editor fee', category: 'labour', amount: 40_000, fundedBy: 'creator', paidOnDay: 0 },
+  { id: 'cost-promo', label: 'Ad-boost / promotion spend', category: 'other', amount: 15_000, fundedBy: 'creator', paidOnDay: 3 },
+  { id: 'cost-props', label: 'Props & wardrobe', category: 'materials', amount: 10_000, fundedBy: 'creator', paidOnDay: 0 },
+];
+
+/**
+ * The hero-moment change request: the brand asks for "one more TikTok"
+ * mid-project. Starts 'pending' — the interactive demo's centerpiece is
+ * walking through classifying it (extra, not included) and both sides
+ * approving it, which is what moves the total from ₦300,000 to ₦330,000.
+ */
+export const kemiChangeRequest: ChangeRequest = {
+  id: 'cr-extra-tiktok',
+  projectId: 'project-lumo-deal',
+  label: 'One more TikTok video',
+  classification: null,
+  priceImpact: 30_000,
+  status: 'pending',
+  creatorApproved: false,
+  clientApproved: false,
+  createdAt: new Date().toISOString(),
+};
+
+export const kemiPersona = {
+  projectName: 'Lumo Skincare deal',
+  clientName: 'Lumo Skincare',
+  craft: 'Content Creator',
+  price: 300_000,
+  scope: kemiScope,
+  costs: kemiCosts,
   depositPct: 40,
-  expectedPaymentDays: 18,
+  expectedPaymentDays: 10,
+  changeRequest: kemiChangeRequest,
 } as const;

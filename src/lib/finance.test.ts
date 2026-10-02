@@ -15,14 +15,25 @@ import {
   buildCashFlowProjection,
   findFirstCashGapDate,
 } from './finance';
-import { asoEbiPersona, asoEbiCosts } from '../data/demoPersona';
+import { kemiPersona } from '../data/demoPersona';
 
-// Amara's Aso-ebi order — the canonical demo figures, read from
-// demoPersona.ts (section 1b) rather than redefined here, so these tests
-// can never quietly drift from what the app actually renders.
-const asoEbiRevenue = asoEbiPersona.price;
-const asoEbiDepositPct = asoEbiPersona.depositPct;
-const asoEbiExpectedPaymentDays = asoEbiPersona.expectedPaymentDays;
+// Fixed, self-contained fixture for this suite — a pure unit-math test for
+// lib/finance.ts should never depend on whichever persona is the current
+// canonical product demo (that's product data and changes with the
+// business; this is a stable regression suite for the calculation
+// functions themselves). Deliberately NOT imported from demoPersona.ts —
+// see the fashion-designer -> content-creator persona pivot, which is
+// exactly the kind of change that would otherwise have silently altered
+// every hardcoded expectation below.
+const asoEbiCosts: ProjectCost[] = [
+  { id: 'cost-materials', label: 'Materials', category: 'materials', amount: 210_000, fundedBy: 'creator', paidOnDay: 0 },
+  { id: 'cost-labour', label: 'Labour', category: 'labour', amount: 80_000, fundedBy: 'creator', paidOnDay: 0 },
+  { id: 'cost-transport', label: 'Transport', category: 'transport', amount: 20_000, fundedBy: 'creator', paidOnDay: 0 },
+  { id: 'cost-other', label: 'Other costs', category: 'other', amount: 15_000, fundedBy: 'creator', paidOnDay: 0 },
+];
+const asoEbiRevenue = 480_000;
+const asoEbiDepositPct = 40;
+const asoEbiExpectedPaymentDays = 18;
 
 describe('sumCosts', () => {
   it('sums all cost line items', () => {
@@ -232,28 +243,33 @@ describe('findFirstCashGapDate', () => {
 describe('numbers integrity — demo figures are computed, not hardcoded', () => {
   it('the rendered upfront-exposure figure equals a live call to calculateUpfrontExposure on demoPersona', () => {
     const rendered = calculateUpfrontExposure(
-      asoEbiPersona.costs,
-      asoEbiPersona.price,
-      asoEbiPersona.depositPct,
-      asoEbiPersona.expectedPaymentDays,
+      kemiPersona.costs,
+      kemiPersona.price,
+      kemiPersona.depositPct,
+      kemiPersona.expectedPaymentDays,
     );
     // Deliberately NOT asserting a literal number here — asserting the
     // calculation is internally reproducible from the same raw inputs is
     // the point; a second, independent computation must agree with it.
     const recomputed = calculateUpfrontExposure(
-      asoEbiPersona.costs,
-      asoEbiPersona.price,
-      asoEbiPersona.depositPct,
-      asoEbiPersona.expectedPaymentDays,
+      kemiPersona.costs,
+      kemiPersona.price,
+      kemiPersona.depositPct,
+      kemiPersona.expectedPaymentDays,
     );
     expect(rendered).toBe(recomputed);
-    expect(rendered).toBeGreaterThan(0);
+    // Not asserting > 0 here: unlike the old fashion-designer persona, Kemi's
+    // 40% deposit (₦120,000) fully covers her ₦65,000 in creator-funded
+    // costs, so zero upfront exposure is the CORRECT figure for this
+    // persona — that's the point of the pivot (the risk here is scope
+    // ambiguity, not cash timing). >= 0 still catches a negative-exposure bug.
+    expect(rendered).toBeGreaterThanOrEqual(0);
   });
 
   it('expected profit responds to a raw-input change instead of staying pinned to a literal', () => {
-    const before = calculateExpectedProfit(asoEbiPersona.costs, asoEbiPersona.price);
-    const higherPriceCosts = asoEbiPersona.costs;
-    const after = calculateExpectedProfit(higherPriceCosts, asoEbiPersona.price + 50_000);
+    const before = calculateExpectedProfit(kemiPersona.costs, kemiPersona.price);
+    const higherPriceCosts = kemiPersona.costs;
+    const after = calculateExpectedProfit(higherPriceCosts, kemiPersona.price + 50_000);
     expect(after).toBe(before + 50_000);
   });
 });

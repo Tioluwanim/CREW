@@ -3,12 +3,13 @@
 import { useEffect, useState, Suspense, lazy } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 import { Button, Card, Pill } from '../components/ui/primitives';
 import { ScrollProgressBar } from '../components/landing/ScrollProgressBar';
 import { DepositSlider } from '../components/forms/DepositSlider';
-import { formatNaira, formatNairaCompact, formatNairaSigned } from '../lib/money';
-import { asoEbiProject, demoFeedback } from '../data/demoData';
+import { formatNaira, formatNairaCompact } from '../lib/money';
+import { kemiProject, demoFeedback } from '../data/demoData';
+import { kemiPersona } from '../data/demoPersona';
 import { useLenisScroll } from '../hooks/useLenisScroll';
 import { useGsapReveal } from '../hooks/useGsapReveal';
 import { useScrollProgress } from '../hooks/useScrollProgress';
@@ -49,26 +50,23 @@ export function LandingExperience() {
 // ---------------------------------------------------------------------------
 // Scene 1 — cinematic opening. Text beats read the same shared
 // HERO_BEAT_RANGES the R3F scene animates against (src/lib/heroBeats.ts),
-// so the two can never drift out of lockstep — previously they were two
-// separately-typed-out literal arrays that merely happened to agree.
+// so the two can never drift out of lockstep.
 //
-// The arc now runs job -> costs -> the cash gap -> profit: the original
-// five beats ended on "But where did the money go?" with nothing
-// following it inside the hero itself — a hard cut straight to a dark
-// ledger section right after. The sixth beat below resolves that tension
-// with a real, computed number before the page ever cuts away.
+// Post-pivot arc: a brand DMs Kemi -> the scope gets agreed -> the brand
+// asks for one more video -> was that included, or extra? -> CREW turns
+// the classification into a two-tap decision instead of an argument, and
+// the deposit already covered it. See kemiPersona/kemiChangeRequest in
+// demoPersona.ts for the numbers this pays off with in the section below.
 // ---------------------------------------------------------------------------
 
-const heroProfit = calculateExpectedProfit(asoEbiProject.costs, asoEbiProject.revenue);
-
 const BEAT_TEXTS = [
-  { text: 'You got the job.', range: HERO_BEAT_RANGES.job },
-  { text: 'You bought the materials.', range: HERO_BEAT_RANGES.materials },
-  { text: 'You paid the tailor.', range: HERO_BEAT_RANGES.costs },
-  { text: 'You delivered.', range: HERO_BEAT_RANGES.deliver },
-  { text: 'But where did the money go?', range: HERO_BEAT_RANGES.gap, big: true },
+  { text: 'A brand slid into your DMs.', range: HERO_BEAT_RANGES.job },
+  { text: 'You agreed on 3 TikToks and 2 Instagram posts.', range: HERO_BEAT_RANGES.materials },
+  { text: `Then: "Can you add one more video?"`, range: HERO_BEAT_RANGES.costs },
+  { text: 'Was that included?', range: HERO_BEAT_RANGES.deliver },
+  { text: 'Or extra?', range: HERO_BEAT_RANGES.gap, big: true },
   {
-    text: `${formatNaira(heroProfit)} in profit — CREW shows you when it lands.`,
+    text: 'CREW made it one tap to agree \u2014 the deposit already covered you.',
     range: HERO_BEAT_RANGES.resolve,
     big: true,
     holdAtEnd: true,
@@ -218,9 +216,8 @@ function splitWords(text: string) {
 function ProblemScene() {
   const ref = useGsapReveal<HTMLDivElement>({ stagger: 0.12, x: -18, y: 4, duration: 0.5, ease: 'power2.out' });
   const headlineRef = useGsapReveal<HTMLDivElement>({ stagger: 0.025, y: 22, start: 'top 75%', duration: 1.1, ease: 'expo.out' });
-  const costs = asoEbiProject.costs;
-  const revenue = asoEbiProject.revenue;
-  const impact = calculateDepositImpact(costs, revenue, asoEbiProject.depositPct, asoEbiProject.expectedPaymentDays);
+  const costs = kemiProject.costs;
+  const revenue = kemiProject.revenue;
 
   const rows = [
     { label: 'Revenue', value: revenue, positive: true },
@@ -231,7 +228,7 @@ function ProblemScene() {
     <section className="atelier-ink border-t border-ink-900/5 px-6 py-24 text-bone-50 sm:px-8" ref={ref}>
       <div className="mx-auto max-w-2xl">
         <p data-reveal className="mb-8 text-sm font-medium uppercase tracking-wide text-bone-200/50">
-          The Aso-ebi order
+          The Lumo Skincare deal
         </p>
 
         <div className="space-y-3 border-t border-white/10 pt-6">
@@ -246,15 +243,15 @@ function ProblemScene() {
         </div>
 
         <div data-reveal className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Metric label="Upfront exposure" value={formatNaira(impact.upfrontExposure)} accent />
-          <Metric label="Client payment" value={`${asoEbiProject.expectedPaymentDays} days`} />
-          <Metric label="Projected cash gap" value={formatNaira(impact.cashGap)} accent />
+          <Metric label="Locked scope" value="3 TikToks · 2 posts" accent />
+          <Metric label="Client payment" value={`${kemiProject.expectedPaymentDays} days`} />
+          <Metric label="One more video" value={formatNaira(kemiProject.changeRequests?.[0]?.priceImpact ?? 0)} accent />
         </div>
 
         <div ref={headlineRef} className="mt-14 font-display text-3xl leading-snug sm:text-4xl">
-          {splitWords('The project was profitable.')}
+          {splitWords('The deal was profitable.')}
           <br />
-          <span className="text-bone-200/60">{splitWords('The problem was getting there.')}</span>
+          <span className="text-bone-200/60">{splitWords('The problem was knowing what "extra" meant.')}</span>
         </div>
       </div>
     </section>
@@ -293,17 +290,27 @@ function IntroScene() {
 // verification) use Framer Motion, per the brief's animation-system split.
 // ---------------------------------------------------------------------------
 
-function InteractiveDemo() {
-  const [depositPct, setDepositPct] = useState(asoEbiProject.depositPct);
-  const [costs, setCosts] = useState(asoEbiProject.costs);
+export function InteractiveDemo() {
+  const [depositPct, setDepositPct] = useState(kemiProject.depositPct);
+  const [costs, setCosts] = useState(kemiProject.costs);
+  const [classification, setClassification] = useState<'included' | 'extra' | null>(null);
+  const [creatorApproved, setCreatorApproved] = useState(false);
+  const [clientApproved, setClientApproved] = useState(false);
   const [invoiceGenerated, setInvoiceGenerated] = useState(false);
   const [paymentVerified, setPaymentVerified] = useState(false);
 
-  const revenue = asoEbiProject.revenue;
-  const impact = calculateDepositImpact(costs, revenue, depositPct, asoEbiProject.expectedPaymentDays);
+  const changeRequest = kemiProject.changeRequests?.[0] ?? kemiPersona.changeRequest;
+  const bothApproved = creatorApproved && clientApproved;
+  const changeIsExtra = classification === 'extra';
+  const changeAccepted = bothApproved && changeIsExtra;
+
+  const baseRevenue = kemiProject.revenue;
+  const revenue = changeAccepted ? baseRevenue + changeRequest.priceImpact : baseRevenue;
+
+  const impact = calculateDepositImpact(costs, revenue, depositPct, kemiProject.expectedPaymentDays);
   const profit = calculateExpectedProfit(costs, revenue);
   const recommended = recommendMinimumSafeDeposit(costs, revenue);
-  const forecast = buildCashFlowProjection(costs, revenue, depositPct, asoEbiProject.expectedPaymentDays, 0);
+  const forecast = buildCashFlowProjection(costs, revenue, depositPct, kemiProject.expectedPaymentDays, 0);
   const currentCashPosition = paymentVerified ? profit : impact.depositAmount - sumCreatorFundedCosts(costs);
 
   function updateCostAmount(id: string, amount: number) {
@@ -314,67 +321,168 @@ function InteractiveDemo() {
     <section className="atelier-table border-t border-ink-900/5 px-6 py-24 sm:px-8" id="demo">
       <div className="mx-auto max-w-3xl">
         <div className="mb-10 text-center">
-          <h2 className="font-display text-3xl sm:text-4xl">Try it with Amara's project</h2>
+          <h2 className="font-display text-3xl sm:text-4xl">Try it with Kemi's deal</h2>
           <p className="mt-2 text-sm text-ink-500">This demo uses sample business data — no account needed.</p>
         </div>
 
         <Card className="p-5 sm:p-7">
-          {/* Step 1: project */}
+          {/* Step 1: the deal + locked scope */}
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <div className="text-xs font-medium uppercase tracking-wide text-ink-500">Project</div>
-              <h3 className="font-display text-2xl">{asoEbiProject.name}</h3>
-              <p className="text-sm text-ink-500">{asoEbiProject.clientName} · Fashion project</p>
+              <div className="text-xs font-medium uppercase tracking-wide text-ink-500">Deal</div>
+              <h3 className="font-display text-2xl">{kemiProject.name}</h3>
+              <p className="text-sm text-ink-500">{kemiProject.clientName} · Content creator</p>
             </div>
             <div className="text-right">
-              <div className="text-xs text-ink-500">Revenue</div>
-              <div className="num text-xl font-medium">{formatNaira(revenue)}</div>
+              <div className="text-xs text-ink-500">Total</div>
+              <motion.div
+                key={revenue}
+                initial={{ opacity: 0.4, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`num text-xl font-medium ${changeAccepted ? 'text-verified-600' : 'text-ink-900'}`}
+              >
+                {formatNaira(revenue)}
+              </motion.div>
             </div>
-          </div>
-
-          <div className="mb-6 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            {costs.map((c) => (
-              <label key={c.id} className="block rounded-lg bg-bone-100/70 p-3 transition-colors focus-within:bg-bone-100">
-                <div className="text-xs text-ink-500">{c.label}</div>
-                <div className="mt-0.5 flex items-baseline gap-0.5">
-                  <span className="num text-xs text-ink-400">₦</span>
-                  <input
-                    type="number"
-                    value={c.amount}
-                    onChange={(e) => updateCostAmount(c.id, Number(e.target.value))}
-                    aria-label={`${c.label} amount`}
-                    className="num w-full min-w-0 bg-transparent font-medium text-ink-900 outline-none"
-                  />
-                </div>
-              </label>
-            ))}
-          </div>
-          <p className="-mt-4 mb-6 text-xs text-ink-500">Try editing a cost — everything below updates with it.</p>
-
-          {/* Step 2 + 3: financial result + deposit slider */}
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <ResultStat label="Upfront exposure" value={formatNaira(impact.upfrontExposure)} tone="thread" />
-            <ResultStat label="Cash gap" value={formatNaira(impact.cashGap)} tone="thread" />
-            <ResultStat label="Expected profit" value={formatNaira(profit)} tone="verified" />
-            <ResultStat label="Days to cash" value={`${asoEbiProject.expectedPaymentDays}`} />
-          </div>
-
-          <div className="mb-6 rounded-xl border border-ink-900/10 p-4">
-            <DepositSlider value={depositPct} onChange={setDepositPct} recommended={recommended} />
-            <p className="mt-3 text-xs text-ink-500">Moving the deposit changes your exposure and gap in real time.</p>
           </div>
 
           <div className="mb-6 rounded-xl border border-ink-900/10 bg-bone-100/40 p-4">
+            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-500">Locked scope</div>
+            <ul className="space-y-1.5 text-sm">
+              {(kemiProject.scope ?? kemiPersona.scope).map((item) => (
+                <li key={item.id} className="flex items-center justify-between">
+                  <span className="text-ink-700">
+                    {item.quantity} {item.unit}
+                    {item.quantity > 1 ? 's' : ''} — {item.label}
+                    {item.quantity > 1 ? 's' : ''}
+                  </span>
+                  <Pill>Locked</Pill>
+                </li>
+              ))}
+              {changeAccepted && (
+                <motion.li
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="flex items-center justify-between"
+                >
+                  <span className="text-ink-700">1 extra {changeRequest.label.replace('One more ', '')}</span>
+                  <Pill tone="verified">Appended</Pill>
+                </motion.li>
+              )}
+            </ul>
+          </div>
+
+          {/* Step 2: the hero moment — the change request */}
+          <div className="mb-6 rounded-xl border border-gold-500/30 bg-gold-100/50 p-4">
             <div className="mb-3 flex items-center justify-between">
               <div>
-                <div className="text-xs font-medium uppercase tracking-wide text-ink-500">Cash forecast</div>
-                <div className="text-sm text-ink-700">How this project moves your cash before the balance arrives.</div>
+                <div className="text-xs font-medium uppercase tracking-wide text-gold-500">Lumo Skincare asks</div>
+                <p className="text-sm font-medium text-ink-900">"Can you add one more TikTok video?"</p>
               </div>
-              <div className={`num text-sm font-medium ${currentCashPosition < 0 ? 'text-thread-600' : 'text-verified-600'}`}>
-                {formatNairaSigned(currentCashPosition)} now
-              </div>
+              {changeAccepted && <Pill tone="verified">Agreed</Pill>}
             </div>
-            <div className="grid grid-cols-5 gap-1.5">
+
+            {!changeAccepted && (
+              <>
+                <p className="mb-3 text-sm text-ink-700">Was that included in the original scope — or extra?</p>
+                <div className="mb-4 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setClassification('included')}
+                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                      classification === 'included' ? 'border-ink-900 bg-ink-900 text-bone-50' : 'border-ink-900/15 bg-white/60 text-ink-700'
+                    }`}
+                  >
+                    Included — no charge
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClassification('extra')}
+                    className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                      classification === 'extra' ? 'border-thread-600 bg-thread-600 text-bone-50' : 'border-ink-900/15 bg-white/60 text-ink-700'
+                    }`}
+                  >
+                    Extra — {formatNaira(changeRequest.priceImpact)}
+                  </button>
+                </div>
+
+                {classification === 'included' && (
+                  <p className="text-sm text-ink-500">Marked as already covered by the original scope — no price change, no approval needed.</p>
+                )}
+
+                {changeIsExtra && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCreatorApproved((v) => !v)}
+                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                        creatorApproved ? 'border-verified-600 bg-verified-100 text-verified-600' : 'border-ink-900/15 bg-white/60 text-ink-700'
+                      }`}
+                    >
+                      {creatorApproved && <Check className="mr-1 inline size-3.5" aria-hidden="true" />}
+                      You approve
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClientApproved((v) => !v)}
+                      className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                        clientApproved ? 'border-verified-600 bg-verified-100 text-verified-600' : 'border-ink-900/15 bg-white/60 text-ink-700'
+                      }`}
+                    >
+                      {clientApproved && <Check className="mr-1 inline size-3.5" aria-hidden="true" />}
+                      Lumo approves
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {changeAccepted && (
+              <p className="text-sm text-verified-600">
+                Both sides agreed — total updated to {formatNaira(revenue)}. Your deposit already covers it; no new invoice needed.
+              </p>
+            )}
+          </div>
+
+          {/* Step 3: costs — secondary, still editable */}
+          <details className="mb-6 rounded-xl border border-ink-900/10 p-4">
+            <summary className="cursor-pointer text-sm font-medium text-ink-700">Costs & cash position</summary>
+            <div className="mt-4 grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+              {costs.map((c) => (
+                <label key={c.id} className="block rounded-lg bg-bone-100/70 p-3 transition-colors focus-within:bg-bone-100">
+                  <div className="text-xs text-ink-500">{c.label}</div>
+                  <div className="mt-0.5 flex items-baseline gap-0.5">
+                    <span className="num text-xs text-ink-400">₦</span>
+                    <input
+                      type="number"
+                      value={c.amount}
+                      onChange={(e) => updateCostAmount(c.id, Number(e.target.value))}
+                      aria-label={`${c.label} amount`}
+                      className="num w-full min-w-0 bg-transparent font-medium text-ink-900 outline-none"
+                    />
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <div className="mb-2 mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <ResultStat label="Upfront exposure" value={formatNaira(impact.upfrontExposure)} tone={impact.upfrontExposure > 0 ? 'thread' : 'default'} />
+              <ResultStat label="Cash gap" value={formatNaira(impact.cashGap)} tone={impact.cashGap > 0 ? 'thread' : 'default'} />
+              <ResultStat label="Expected profit" value={formatNaira(profit)} tone="verified" />
+              <ResultStat label="Days to cash" value={`${kemiProject.expectedPaymentDays}`} />
+            </div>
+
+            <div className="mb-2 rounded-xl border border-ink-900/10 p-3">
+              <DepositSlider value={depositPct} onChange={setDepositPct} recommended={recommended} />
+            </div>
+
+            {impact.cashGap === 0 ? (
+              <p className="text-sm text-verified-600">No gap — your deposit already covers your creator-funded costs.</p>
+            ) : (
+              <p className="text-sm text-thread-600">Recommended deposit: {recommended}% to close the gap.</p>
+            )}
+
+            <div className="mt-4 grid grid-cols-5 gap-1.5">
               {forecast.map((point) => (
                 <div key={point.label} className="min-w-0">
                   <div className="mb-1 text-[10px] text-ink-500">{point.label.replace(' days', 'd')}</div>
@@ -393,48 +501,35 @@ function InteractiveDemo() {
                 </div>
               ))}
             </div>
-          </div>
+          </details>
 
-          {/* Step 4: recommendation */}
-          {recommended !== null && depositPct < recommended && (
-            <div className="mb-6 rounded-xl border border-gold-500/30 bg-gold-100/60 p-4">
-              <p className="text-sm font-medium text-ink-900">Recommended deposit: {recommended}%</p>
-              <p className="mt-1 text-sm text-ink-700">This deposit covers your upfront costs with a safer buffer.</p>
-            </div>
-          )}
-          {recommended !== null && depositPct >= recommended && (
-            <div className="mb-6 rounded-xl border border-verified-600/20 bg-verified-100/60 p-4 text-sm text-verified-600">
-              This deposit covers your upfront costs. No cash gap for this project.
-            </div>
-          )}
-
-          {/* Step 5: invoice */}
+          {/* Step 4: client link preview */}
           <div className="mb-6 border-t border-ink-900/10 pt-6">
             {!invoiceGenerated ? (
-              <Button onClick={() => setInvoiceGenerated(true)}>Generate invoice</Button>
+              <Button onClick={() => setInvoiceGenerated(true)}>Preview client link</Button>
             ) : (
               <div className="space-y-4">
                 <div className="rounded-xl border border-ink-900/10 bg-bone-100/50 p-4">
                   <div className="mb-3 flex items-center justify-between">
-                    <span className="text-sm font-medium">Invoice preview</span>
-                    <Pill>Not sent yet</Pill>
+                    <span className="text-sm font-medium">Client link preview</span>
+                    <Pill>No signup needed</Pill>
                   </div>
                   <div className="space-y-1.5 text-sm">
-                    <Row label="Client" value={asoEbiProject.clientName} />
+                    <Row label="Client" value={kemiProject.clientName} />
                     <Row label="Amount" value={formatNaira(revenue)} />
                     <Row label="Deposit" value={`${depositPct}% · ${formatNaira(impact.depositAmount)}`} />
                     <Row label="Balance" value={formatNaira(revenue - impact.depositAmount)} />
-                    <Row label="Due" value={`${asoEbiProject.expectedPaymentDays} days after delivery`} />
+                    <Row label="Due" value={`${kemiProject.expectedPaymentDays} days after delivery`} />
                   </div>
                 </div>
                 <div className="rounded-xl border border-verified-600/20 bg-verified-100/40 p-4">
                   <p className="mb-1 text-xs font-medium uppercase tracking-wide text-verified-600">WhatsApp-ready</p>
                   <p className="text-sm text-ink-700">
-                    "Hi {asoEbiProject.clientName}, here's your invoice for the {asoEbiProject.name.toLowerCase()} — {formatNaira(revenue)} total, {formatNaira(impact.depositAmount)} deposit to start. CREW link: crew.app/pay/asoebi"
+                    "Hi {kemiProject.clientName}, here's your link for the {kemiProject.name.toLowerCase()} — {formatNaira(revenue)} total, {formatNaira(impact.depositAmount)} deposit to start. CREW link: crew.app/pay/{kemiProject.id}"
                   </p>
                 </div>
 
-                {/* Step 6: simulated payment */}
+                {/* Step 5: simulated payment */}
                 {!paymentVerified ? (
                   <Button variant="secondary" onClick={() => setPaymentVerified(true)}>
                     Simulate client payment
@@ -450,7 +545,7 @@ function InteractiveDemo() {
                       <span className="text-sm text-ink-700">Payment received</span>
                     </div>
                     <p className="text-sm text-verified-600">
-                      Cash position: {formatNaira(currentCashPosition)}. Expected profit: {formatNaira(profit)}. Project status: paid.
+                      Cash position: {formatNaira(currentCashPosition)}. Expected profit: {formatNaira(profit)}. Deal status: paid.
                     </p>
                   </motion.div>
                 )}

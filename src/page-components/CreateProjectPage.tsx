@@ -75,7 +75,7 @@ export function CreateProjectPage() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="font-display text-2xl text-ink-900">"{draft.name}" is set up.</h1>
           <p className="mt-2 text-sm text-ink-500">
-            This demo keeps Amara's Aso-ebi order as the one editable project — your new project's numbers were calculated
+            This demo keeps Kemi's Lumo Skincare deal as the one editable project — your new project's numbers were calculated
             using the same math, but won't persist as a separate workspace entry here.
           </p>
           <Button className="mt-6" onClick={() => router.push('/app/projects')}>

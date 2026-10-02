@@ -1,6 +1,6 @@
 from intelligence.interfaces import ProjectDTO
 from intelligence.financial_engine import FinancialEngine
-import copy
+import dataclasses
 
 class SimulationEngine:
     @staticmethod
@@ -9,14 +9,12 @@ class SimulationEngine:
         Runs the project through a 'Pessimistic Scenario' (Costs overrun by 20%, 
         client pays 14 days late). Returns a Resilience Score from 0 to 100.
         """
-        # Create a deep copy of the DTO so we don't mutate the original during the test
-        stressed_project = copy.deepcopy(project)
-        
-        # Scenario 1: Apply a flat 20% cost explosion to every expense
-        for cost in stressed_project.costs:
-            stressed_amount = int(cost.amount * 1.20)
-            cost.amount = stressed_amount
-            
+        # CostDTO is frozen, so build a new list of stressed copies instead of mutating.
+        stressed_costs = [
+            dataclasses.replace(c, amount=(c.amount * 120) // 100) for c in project.costs
+        ]
+        stressed_project = dataclasses.replace(project, costs=stressed_costs)
+
         # Scenario 2: Push the final payment day back by 14 days
         stressed_payment_day = expected_payment_day + 14
         

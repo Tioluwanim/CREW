@@ -6,7 +6,8 @@ import { X, Send } from 'lucide-react';
 import type { CopilotMessage, CopilotAction as CopilotActionType } from './copilot.types';
 import { CopilotAvatarMark } from './CopilotAvatarMark';
 import { CopilotAction } from './CopilotAction';
-import { suggestedCopilotQuestions } from '../../services/copilotChat';
+import { ProposalCard } from './ProposalCard';
+import { suggestedCopilotQuestions, suggestedCopilotTools } from '../../services/copilotChat';
 import { cn } from '../../lib/cn';
 
 interface CopilotPanelProps {
@@ -14,6 +15,7 @@ interface CopilotPanelProps {
   onClose: () => void;
   onSend: (text: string) => void;
   onAction: (action: CopilotActionType) => void;
+  onResolveProposal: (messageId: string, resolution: 'accepted' | 'dismissed') => void;
 }
 
 /**
@@ -21,11 +23,16 @@ interface CopilotPanelProps {
  * free-text questions are answered by services/copilotChat — every
  * answer is grounded in the same finance numbers the rest of the app
  * shows, never a figure the chat invented for the reply (see
- * copilotChat.ts's own comment on that boundary).
+ * copilotChat.ts's own comment on that boundary). Three of those answers
+ * come back as PROPOSALS instead of plain text (a drafted scope, a
+ * suggested change-request classification, a drafted client nudge) —
+ * those render as their own card with explicit Accept/Dismiss, never
+ * auto-applied just because they were asked for.
  */
-export function CopilotPanel({ messages, onClose, onSend, onAction }: CopilotPanelProps) {
+export function CopilotPanel({ messages, onClose, onSend, onAction, onResolveProposal }: CopilotPanelProps) {
   const [draft, setDraft] = useState('');
   const listRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Optional-chained on scrollTo itself, not just the element — jsdom
@@ -39,6 +46,19 @@ export function CopilotPanel({ messages, onClose, onSend, onAction }: CopilotPan
     if (!draft.trim()) return;
     onSend(draft);
     setDraft('');
+  }
+
+  function handleToolClick(prompt: string) {
+    // "Draft scope from: " needs pasted text after it — fill the input
+    // and let the person finish it, rather than sending an incomplete
+    // command. The other two tools need no extra input, so they send
+    // immediately, same as a suggested question.
+    if (prompt.endsWith(': ')) {
+      setDraft(prompt);
+      inputRef.current?.focus();
+      return;
+    }
+    onSend(prompt);
   }
 
   return (
@@ -83,6 +103,14 @@ export function CopilotPanel({ messages, onClose, onSend, onAction }: CopilotPan
                 >
                   {message.text}
                 </div>
+                {message.role === 'assistant' && message.proposal && (
+                  <ProposalCard
+                    proposal={message.proposal}
+                    status={message.proposalStatus ?? 'pending'}
+                    onAccept={() => onResolveProposal(message.id, 'accepted')}
+                    onDismiss={() => onResolveProposal(message.id, 'dismissed')}
+                  />
+                )}
                 {message.role === 'assistant' && message.actions && message.actions.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {message.actions.map((action, i) => (
@@ -97,6 +125,17 @@ export function CopilotPanel({ messages, onClose, onSend, onAction }: CopilotPan
       </div>
 
       <div className="shrink-0 border-t border-white/10 px-3 pb-3 pt-2.5">
+        <div className="mb-1.5 flex gap-1.5 overflow-x-auto pb-0.5">
+          {suggestedCopilotTools().map((prompt) => (
+            <button
+              key={prompt}
+              onClick={() => handleToolClick(prompt)}
+              className="shrink-0 whitespace-nowrap rounded-full border border-gold-500/30 bg-gold-500/10 px-3 py-1.5 text-xs font-medium text-gold-500 hover:bg-gold-500/20"
+            >
+              {prompt.trim()}
+            </button>
+          ))}
+        </div>
         <div className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5">
           {suggestedCopilotQuestions().map((question) => (
             <button
@@ -110,6 +149,7 @@ export function CopilotPanel({ messages, onClose, onSend, onAction }: CopilotPan
         </div>
         <form onSubmit={handleSubmit} className="flex items-center gap-2">
           <input
+            ref={inputRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Ask Copilot…"

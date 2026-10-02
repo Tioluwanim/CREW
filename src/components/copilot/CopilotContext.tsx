@@ -4,7 +4,7 @@ import { createContext, useContext, useCallback, useEffect, useMemo, useState, t
 import { useProjectStore } from '../../store/projectStore';
 import { getCopilotInsight, type CopilotRoute } from '../../services/copilot';
 import { answerCopilotQuestion, formatDaysToCashLabel, type CopilotChatContext } from '../../services/copilotChat';
-import { amaraProfile } from '../../data/demoData';
+import { kemiProfile } from '../../data/demoData';
 import type { CopilotInsight, CopilotMessage } from './copilot.types';
 
 interface CopilotContextValue {
@@ -17,6 +17,11 @@ interface CopilotContextValue {
   seedFromInsight: () => void;
   sendMessage: (text: string) => void;
   resetConversation: () => void;
+  /** The only place an agent-tool proposal actually touches the project —
+   * 'accepted' applies it via the matching store action; 'dismissed' just
+   * marks the message resolved. Either way it's a one-way transition:
+   * once a proposal is resolved it can't be re-resolved. */
+  resolveProposal: (messageId: string, resolution: 'accepted' | 'dismissed') => void;
 }
 
 const CopilotContext = createContext<CopilotContextValue | null>(null);
@@ -32,6 +37,8 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
   const paymentStatus = useProjectStore((s) => s.paymentStatus);
   const invoiceApproved = useProjectStore((s) => s.invoiceApproved);
   const derived = useProjectStore((s) => s.derived);
+  const setScope = useProjectStore((s) => s.setScope);
+  const classifyChangeRequest = useProjectStore((s) => s.classifyChangeRequest);
 
   const insight = useMemo(() => {
     const { cashGap, expectedProfit, gapDate } = derived();
@@ -52,9 +59,9 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
       profitMargin: d.profitMargin,
       gapDate: d.gapDate,
       daysToCashLabel: formatDaysToCashLabel(d.daysToCash),
-      averagePaymentDelayDays: amaraProfile.averagePaymentDelayDays,
-      averageMaterialOverrunPct: amaraProfile.averageMaterialOverrunPct,
-      typicalDepositPct: amaraProfile.typicalDepositPct,
+      averagePaymentDelayDays: kemiProfile.averagePaymentDelayDays,
+      averageMaterialOverrunPct: kemiProfile.averageMaterialOverrunPct,
+      typicalDepositPct: kemiProfile.typicalDepositPct,
     };
   }, [derived, project, paymentStatus]);
 
@@ -77,6 +84,8 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
         role: 'assistant',
         text: answer.text,
         actions: answer.actions,
+        proposal: answer.proposal,
+        proposalStatus: answer.proposal ? 'pending' : undefined,
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
@@ -84,10 +93,43 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
     [chatContext],
   );
 
+  const resolveProposal = useCallback(
+    (messageId: string, resolution: 'accepted' | 'dismissed') => {
+      setMessages((prev) => {
+        const target = prev.find((m) => m.id === messageId);
+        // Already resolved, or nothing to resolve — no-op, so a repeat
+        // click (or a stale ref after re-render) can't double-apply it.
+        if (!target?.proposal || target.proposalStatus !== 'pending') return prev;
+        return prev.map((m) => (m.id === messageId ? { ...m, proposalStatus: resolution } : m));
+      });
+
+      if (resolution !== 'accepted') return;
+      const target = messages.find((m) => m.id === messageId);
+      if (!target?.proposal || target.proposalStatus !== 'pending') return;
+
+      switch (target.proposal.kind) {
+        case 'scope':
+          setScope(target.proposal.items);
+          break;
+        case 'classification':
+          classifyChangeRequest(target.proposal.changeRequestId, target.proposal.classification);
+          break;
+        case 'nudge':
+          // Nothing to apply to the project — there's no message-sending
+          // integration in this demo. Best-effort clipboard copy so
+          // "accept" still does something useful; never throws if the
+          // clipboard API isn't available (jsdom in tests, some browsers).
+          navigator.clipboard?.writeText?.(target.proposal.message).catch(() => {});
+          break;
+      }
+    },
+    [messages, setScope, classifyChangeRequest],
+  );
+
   const resetConversation = useCallback(() => setMessages([]), []);
 
   return (
-    <CopilotContext.Provider value={{ insight, setRoute, messages, seedFromInsight, sendMessage, resetConversation }}>
+    <CopilotContext.Provider value={{ insight, setRoute, messages, seedFromInsight, sendMessage, resetConversation, resolveProposal }}>
       {children}
     </CopilotContext.Provider>
   );

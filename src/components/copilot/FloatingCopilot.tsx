@@ -22,7 +22,7 @@ import type { CopilotAction } from './copilot.types';
  */
 export function FloatingCopilot() {
   const [isOpen, setIsOpen] = useState(false);
-  const { insight, messages, seedFromInsight, sendMessage } = useCopilotContext();
+  const { insight, messages, seedFromInsight, sendMessage, resolveProposal } = useCopilotContext();
   const router = useRouter();
 
   function handleOpen() {
@@ -37,7 +37,7 @@ export function FloatingCopilot() {
         router.push('/app/cash-flow');
         break;
       case 'simulate_deposit':
-        router.push('/app/projects/project-asoebi');
+        router.push('/app/projects/project-lumo-deal');
         break;
       case 'review_invoice':
         router.push('/app/invoices');
@@ -57,7 +57,13 @@ export function FloatingCopilot() {
       <div className="flex flex-col items-end gap-3">
         <AnimatePresence>
           {isOpen && (
-            <CopilotPanel messages={messages} onClose={() => setIsOpen(false)} onSend={sendMessage} onAction={handleAction} />
+            <CopilotPanel
+              messages={messages}
+              onClose={() => setIsOpen(false)}
+              onSend={sendMessage}
+              onAction={handleAction}
+              onResolveProposal={resolveProposal}
+            />
           )}
         </AnimatePresence>
         {!isOpen && <CopilotButton insight={insight} isOpen={isOpen} onClick={handleOpen} />}

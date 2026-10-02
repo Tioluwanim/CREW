@@ -1,5 +1,5 @@
 from intelligence.interfaces import CostDTO
-import money
+from intelligence import money
 
 class BufferEngine:
     # High-volatility categories mapping (case-insensitive checks)
@@ -22,7 +22,7 @@ class BufferEngine:
         total_contingency_kobo = 0
         
         for cost in costs:
-            cost_kobo = money.to_kobo(cost.amount)
+            cost_kobo = money.naira_to_kobo(cost.amount)
             category_key = cost.category.lower().strip()
             
             # Match the category to our volatility index, or fall back to default

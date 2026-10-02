@@ -1,32 +1,35 @@
-import type { Client, CreativeProfile, Feedback, Project } from '../types';
-import { asoEbiPersona } from './demoPersona';
+import type { Client, CreativeProfile, Feedback, Milestone, Project } from '../types';
+import { kemiPersona } from './demoPersona';
+import { calculateDepositAmount } from '../lib/finance';
 
-// Every part of this build reads Amara's raw numbers from demoPersona.ts
-// (section 1b) — this file builds the derived envelope objects (Project,
-// Client, etc.) around those same raw inputs, so there is exactly one
-// place the numbers themselves are defined.
+// Every part of this build reads Kemi's raw numbers from demoPersona.ts —
+// this file builds the derived envelope objects (Project, Client, etc.)
+// around those same raw inputs, so there is exactly one place the numbers
+// themselves are defined.
 
-export const amaraProfile: CreativeProfile = {
-  id: 'profile-amara',
-  businessName: 'Amara Studio',
-  craft: 'Fashion Designer',
+export const kemiProfile: CreativeProfile = {
+  id: 'profile-kemi',
+  businessName: 'Kemi Ade',
+  craft: 'Content Creator',
   location: 'Lagos, Nigeria',
-  ownerName: 'Amara',
-  projectsCompleted: 24,
-  averageProjectValue: 280_000,
-  typicalDepositPct: 56,
-  averagePaymentDelayDays: 14,
-  averageMaterialOverrunPct: 8,
-  averageMarginPct: 32,
+  ownerName: 'Kemi',
+  projectsCompleted: 17,
+  averageProjectValue: 210_000,
+  typicalDepositPct: 40,
+  averagePaymentDelayDays: 9,
+  averageMaterialOverrunPct: 6,
+  averageMarginPct: 46,
+  onTimePaymentRate: 0.88,
+  repeatClientCount: 6,
 };
 
-export const teniClient: Client = {
-  id: 'client-teni',
-  name: 'Teni',
-  projectIds: ['project-asoebi'],
-  totalBilled: 1_200_000,
-  totalPaid: 960_000,
-  averagePaymentDays: 16,
+export const lumoClient: Client = {
+  id: 'client-lumo',
+  name: 'Lumo Skincare',
+  projectIds: ['project-lumo-deal'],
+  totalBilled: 780_000,
+  totalPaid: 480_000,
+  averagePaymentDays: 9,
 };
 
 export const bisiClient: Client = {
@@ -56,28 +59,38 @@ export const funkeClient: Client = {
   averagePaymentDays: 12,
 };
 
-export const clients: Client[] = [teniClient, bisiClient, dapoClient, funkeClient];
+export const clients: Client[] = [lumoClient, bisiClient, dapoClient, funkeClient];
 
-export const asoEbiProject: Project = {
-  id: 'project-asoebi',
-  name: asoEbiPersona.projectName,
-  clientId: 'client-teni',
-  clientName: asoEbiPersona.clientName,
-  craft: asoEbiPersona.craft,
-  revenue: asoEbiPersona.price,
-  depositPct: asoEbiPersona.depositPct,
-  costs: asoEbiPersona.costs,
-  expectedPaymentDays: asoEbiPersona.expectedPaymentDays,
+export const kemiProject: Project = {
+  id: 'project-lumo-deal',
+  name: kemiPersona.projectName,
+  clientId: 'client-lumo',
+  clientName: kemiPersona.clientName,
+  craft: kemiPersona.craft,
+  revenue: kemiPersona.price,
+  depositPct: kemiPersona.depositPct,
+  costs: kemiPersona.costs,
+  expectedPaymentDays: kemiPersona.expectedPaymentDays,
   status: 'active',
   createdAt: new Date().toISOString(),
   activity: [
-    { id: 'a1', label: 'Project created', timestamp: new Date().toISOString() },
-    { id: 'a2', label: 'Budget added', timestamp: new Date().toISOString() },
+    { id: 'a1', label: 'Deal agreed', timestamp: new Date().toISOString() },
+    { id: 'a2', label: 'Scope locked: 3 TikTok videos, 2 Instagram posts', timestamp: new Date().toISOString() },
   ],
+  scope: kemiPersona.scope,
+  changeRequests: [kemiPersona.changeRequest],
+  milestones: (() => {
+    const depositAmount = calculateDepositAmount(kemiPersona.price, kemiPersona.depositPct);
+    const milestones: Milestone[] = [
+      { id: 'ms-deposit', projectId: 'project-lumo-deal', label: 'Deposit', amount: depositAmount, status: 'agreed' },
+      { id: 'ms-balance', projectId: 'project-lumo-deal', label: 'Balance', amount: kemiPersona.price - depositAmount, status: 'agreed' },
+    ];
+    return milestones;
+  })(),
 };
 
 // Additional demo projects — view-only (not wired into the editable
-// store, unlike asoEbiProject) so /app/projects and /app/clients read as
+// store, unlike kemiProject) so /app/projects and /app/clients read as
 // a populated workspace rather than a single hero project. Their figures
 // are still computed at render time from lib/finance.ts, never hardcoded
 // alongside these raw inputs (same rule as demoPersona.ts).
@@ -144,7 +157,7 @@ export const otherProjects: Project[] = [
   },
 ];
 
-export const allProjects: Project[] = [asoEbiProject, ...otherProjects];
+export const allProjects: Project[] = [kemiProject, ...otherProjects];
 
 export const demoFeedback: Feedback[] = [
   {

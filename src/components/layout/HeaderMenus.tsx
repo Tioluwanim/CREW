@@ -4,10 +4,10 @@ import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence } from 'framer-motion';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { Bell, Check, CircleDollarSign, FileClock, TrendingDown, FolderPlus, UserCircle, Settings, LogOut } from 'lucide-react';
+import { Bell, Check, CircleDollarSign, FileClock, TrendingDown, FolderPlus, MessageCircleQuestion, UserCircle, Settings, LogOut } from 'lucide-react';
 import { useDismissableMenu } from '../../hooks/useDismissableMenu';
 import { MenuPanel } from '../ui/menu';
-import { amaraProfile } from '../../data/demoData';
+import { kemiProfile } from '../../data/demoData';
 import { demoNotifications as initialNotifications } from '../../data/notifications';
 import type { AppNotification, NotificationKind } from '../../types';
 import { cn } from '../../lib/cn';
@@ -17,6 +17,7 @@ const kindIcon: Record<NotificationKind, typeof Bell> = {
   invoice_viewed: FileClock,
   cash_gap: TrendingDown,
   project_created: FolderPlus,
+  change_request: MessageCircleQuestion,
 };
 
 const kindTone: Record<NotificationKind, string> = {
@@ -24,6 +25,7 @@ const kindTone: Record<NotificationKind, string> = {
   invoice_viewed: 'text-ink-700 bg-ink-900/5',
   cash_gap: 'text-thread-600 bg-thread-100',
   project_created: 'text-ink-700 bg-ink-900/5',
+  change_request: 'text-gold-500 bg-gold-100',
 };
 
 export function NotificationsMenu() {
@@ -122,7 +124,7 @@ export function AccountMenu() {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
   const ref = useDismissableMenu(open, close);
-  const initial = amaraProfile.ownerName.charAt(0).toUpperCase();
+  const initial = kemiProfile.ownerName.charAt(0).toUpperCase();
 
   const links = [
     { href: '/app/profile', label: 'Business profile', icon: UserCircle },
@@ -144,8 +146,8 @@ export function AccountMenu() {
         {open && (
           <MenuPanel align="end">
             <div className="border-b border-ink-900/10 px-3 py-2.5">
-              <p className="text-sm font-medium text-ink-900">{amaraProfile.businessName}</p>
-              <p className="text-[12px] text-ink-500">{amaraProfile.craft}</p>
+              <p className="text-sm font-medium text-ink-900">{kemiProfile.businessName}</p>
+              <p className="text-[12px] text-ink-500">{kemiProfile.craft}</p>
             </div>
             <div className="py-1">
               {links.map((link) => (

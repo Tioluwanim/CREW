@@ -14,6 +14,12 @@ export interface CreativeProfile {
   averagePaymentDelayDays: number;
   averageMaterialOverrunPct: number;
   averageMarginPct: number;
+  /** Share (0-1) of completed projects where the final balance arrived by
+   * the expected-payment-days window. Backend-computed, display-only —
+   * see features/badges. */
+  onTimePaymentRate: number;
+  /** Count of distinct clients with more than one completed project. */
+  repeatClientCount: number;
 }
 
 export type CostFunder = 'creator' | 'client';
@@ -37,6 +43,57 @@ export interface ProjectCost {
 
 export type ProjectStatus = 'active' | 'awaiting_payment' | 'completed';
 
+/** One deliverable line in a project's agreed scope (e.g. "3 TikTok videos"). */
+export interface ScopeItem {
+  id: string;
+  label: string;
+  quantity: number;
+  unit: string; // "video", "post", "outfit" — whatever the craft's own unit is
+  /** 'locked' = part of the original agreement; 'appended' = added later via an accepted ChangeRequest. */
+  status: 'locked' | 'appended';
+}
+
+export type ChangeRequestStatus = 'pending' | 'accepted' | 'rejected';
+/** Whether an ask was already covered by the original scope, or is genuinely additional work. */
+export type ChangeClassification = 'included' | 'extra';
+
+/**
+ * A client ask that falls outside (or possibly outside) the locked scope.
+ * The classification + price impact are proposed data, not computed by a
+ * component — same "math/decision lives in one place" rule as lib/finance.ts.
+ * Both sides must independently approve before it's reflected in scope/price.
+ */
+export interface ChangeRequest {
+  id: string;
+  projectId: string;
+  label: string;
+  /** null = not yet classified — the open "was that included, or extra?" question. */
+  classification: ChangeClassification | null;
+  priceImpact: number; // naira, positive = adds to project price
+  status: ChangeRequestStatus;
+  creatorApproved: boolean;
+  clientApproved: boolean;
+  createdAt: string;
+}
+
+/**
+ * Lifecycle of a single payment milestone. Distinct from the simpler
+ * top-level PaymentStatus (pending/unverified/verified/failed) below,
+ * which describes one payment event; this describes where a whole
+ * milestone sits in the "money received but not yet released" flow.
+ * "funded"/"released" are neutral bookkeeping-state language, not a claim
+ * of real fund custody/escrow — see project workspace Payments tab notes.
+ */
+export type MilestoneStatus = 'agreed' | 'funded' | 'in_progress' | 'in_review' | 'approved' | 'released';
+
+export interface Milestone {
+  id: string;
+  projectId: string;
+  label: string;
+  amount: number;
+  status: MilestoneStatus;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -50,6 +107,10 @@ export interface Project {
   status: ProjectStatus;
   createdAt: string;
   activity: ActivityEvent[];
+  /** Locked original scope + anything appended via an accepted change request. Optional — older demo projects don't model it yet. */
+  scope?: ScopeItem[];
+  changeRequests?: ChangeRequest[];
+  milestones?: Milestone[];
 }
 
 export interface ActivityEvent {
@@ -137,11 +198,41 @@ export interface CopilotAction {
   kind: 'simulate_deposit' | 'view_forecast' | 'review_invoice' | 'view_history' | 'show_gap';
 }
 
+/**
+ * Agent-tool proposals: Copilot drafts something concrete and STOPS —
+ * nothing is applied to the project until the person explicitly accepts
+ * it (see CopilotPanel's proposal rendering and CopilotContext's
+ * resolveProposal). Same "propose, human confirms" boundary as the rest
+ * of Copilot; these three are just richer than a plain navigation action.
+ */
+export interface CopilotScopeProposal {
+  kind: 'scope';
+  items: { id: string; label: string; quantity: number; unit: string }[];
+}
+
+export interface CopilotClassificationProposal {
+  kind: 'classification';
+  changeRequestId: string;
+  classification: ChangeClassification;
+  reason: string;
+}
+
+export interface CopilotNudgeProposal {
+  kind: 'nudge';
+  message: string;
+}
+
+export type CopilotProposal = CopilotScopeProposal | CopilotClassificationProposal | CopilotNudgeProposal;
+
 export interface CopilotMessage {
   id: string;
   role: 'assistant' | 'user';
   text: string;
   actions?: CopilotAction[];
+  proposal?: CopilotProposal;
+  /** Undefined when there's no proposal on this message. 'pending' until
+   * the person accepts or dismisses it — never auto-resolves. */
+  proposalStatus?: 'pending' | 'accepted' | 'dismissed';
   createdAt: string;
 }
 
@@ -197,7 +288,7 @@ export interface Feedback {
   date: string;
 }
 
-export type NotificationKind = 'payment_verified' | 'invoice_viewed' | 'cash_gap' | 'project_created';
+export type NotificationKind = 'payment_verified' | 'invoice_viewed' | 'cash_gap' | 'project_created' | 'change_request';
 
 export interface AppNotification {
   id: string;
