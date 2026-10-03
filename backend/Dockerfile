@@ -9,4 +9,4 @@ COPY . .
 
 EXPOSE 10000
 
-CMD ["sh", "-c", "alembic upgrade head && python -m scripts.seed && uvicorn main:app --host 0.0.0.0 --port $PORT"]
+CMD ["sh", "-c", "echo 'Running migrations...' && alembic upgrade head && echo 'Migrations complete.' && echo \"Starting API on port $PORT\" && uvicorn main:app --host 0.0.0.0 --port $PORT"]
