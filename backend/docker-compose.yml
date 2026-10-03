@@ -1,19 +1,71 @@
-# Local production-like stack:  docker compose up --build
 services:
   db:
     image: postgres:16
-    environment: { POSTGRES_USER: crew, POSTGRES_PASSWORD: crew, POSTGRES_DB: crew }
-    volumes: [pgdata:/var/lib/postgresql/data]
-    healthcheck: { test: ["CMD-SHELL", "pg_isready -U crew"], interval: 5s, retries: 10 }
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      retries: 10
+
   api:
     build: .
-    depends_on: { db: { condition: service_healthy } }
+    depends_on:
+      db:
+        condition: service_healthy
+
     environment:
-      DATABASE_URL: postgresql+psycopg://crew:crew@db:5432/crew
-      AUTO_CREATE_TABLES: "false"
-      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me-dev-only-change-me}
-      CREW_DEMO_MODE: "true"
-      PUBLIC_APP_URL: http://localhost:3000
-    command: sh -c "alembic upgrade head && python -m scripts.seed && uvicorn main:app --host 0.0.0.0 --port 8000"
-    ports: ["8000:8000"]
-volumes: { pgdata: {} }
+      DATABASE_URL: ${DATABASE_URL}
+      AUTO_CREATE_TABLES: ${AUTO_CREATE_TABLES}
+      JWT_SECRET: ${JWT_SECRET}
+      CREW_DEMO_MODE: ${CREW_DEMO_MODE}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL}
+
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+
+      ECOBANK_BASE_URL: ${ECOBANK_BASE_URL}
+      ECOBANK_CLIENT_ID: ${ECOBANK_CLIENT_ID}
+      ECOBANK_CLIENT_SECRET: ${ECOBANK_CLIENT_SECRET}
+      ECOBANK_WEBHOOK_SECRET: ${ECOBANK_WEBHOOK_SECRET}
+
+      VERVE_BASE_URL: ${VERVE_BASE_URL}
+      VERVE_CLIENT_ID: ${VERVE_CLIENT_ID}
+      VERVE_CLIENT_SECRET: ${VERVE_CLIENT_SECRET}
+      VERVE_WEBHOOK_SECRET: ${VERVE_WEBHOOK_SECRET}
+
+      FORECASTER: ${FORECASTER}
+      AGENT_RUNTIME: ${AGENT_RUNTIME}
+
+      CREW_ENV: ${CREW_ENV}
+      DEMO_AUTO_AUTH: ${DEMO_AUTO_AUTH}
+
+      DL_ARTIFACT_DIR: ${DL_ARTIFACT_DIR}
+      CRON_SECRET: ${CRON_SECRET}
+
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_STARTTLS: ${SMTP_STARTTLS}
+
+      PAYOUT_PROVIDER: ${PAYOUT_PROVIDER}
+      SANDBOX_ASYNC_PAYOUTS: ${SANDBOX_ASYNC_PAYOUTS}
+
+      PORT: ${PORT}
+
+    command: >
+      sh -c "alembic upgrade head &&
+             python -m scripts.seed &&
+             uvicorn main:app --host 0.0.0.0 --port $${PORT}"
+
+    ports:
+      - "${PORT}:${PORT}"
+
+volumes:
+  pgdata:
