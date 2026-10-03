@@ -1,5 +1,5 @@
 import type { components } from '../api/generated';
-import { API_BASE_URL as BASE } from '../lib/apiConfig';
+import { apiFetch } from '../lib/apiClient';
 
 type ProjectFinancialSnapshot = components['schemas']['ProjectFinancialSnapshot'];
 
@@ -11,7 +11,7 @@ type ProjectFinancialSnapshot = components['schemas']['ProjectFinancialSnapshot'
  * with no change to any call site.
  */
 export async function getProjectFinancials(projectId: string): Promise<ProjectFinancialSnapshot> {
-  const res = await fetch(`${BASE}/projects/${projectId}/financials`);
+  const res = await apiFetch(`/projects/${projectId}/financials`);
   if (!res.ok) throw new Error('Failed to load project financials');
   return res.json();
 }

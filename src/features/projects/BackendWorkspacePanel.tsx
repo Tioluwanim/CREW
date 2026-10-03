@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Card, Pill, StatLabel, StatValue } from '../../components/ui/primitives';
-import { getProjectWorkspace, type BackendProjectWorkspace } from '../../services/projectWorkspace';
+import { getProjectWorkspace, resolveBackendProjectId, type BackendProjectWorkspace } from '../../services/projectWorkspace';
 
 function value(data: Record<string, unknown>, ...keys: string[]) {
   for (const key of keys) {
@@ -15,13 +15,17 @@ function currency(data: Record<string, unknown>) {
   return String(value(data, 'currency', 'projectCurrency'));
 }
 
-export function BackendWorkspacePanel({ projectId }: { projectId: string }) {
+export function BackendWorkspacePanel({ projectId, projectName }: { projectId: string; projectName: string }) {
   const [workspace, setWorkspace] = useState<BackendProjectWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
-    getProjectWorkspace(projectId)
+    resolveBackendProjectId({ id: projectId, name: projectName })
+      .then((backendId) => {
+        if (!backendId) throw new Error('This project does not exist on the backend yet');
+        return getProjectWorkspace(backendId);
+      })
       .then((result) => {
         if (active) setWorkspace(result);
       })
@@ -31,7 +35,7 @@ export function BackendWorkspacePanel({ projectId }: { projectId: string }) {
     return () => {
       active = false;
     };
-  }, [projectId]);
+  }, [projectId, projectName]);
 
   if (error) {
     return (

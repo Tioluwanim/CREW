@@ -7,6 +7,9 @@ import { Card, StatLabel, Button } from '../components/ui/primitives';
 import { DepositSlider } from '../components/forms/DepositSlider';
 import { formatNaira } from '../lib/money';
 import { calculateDepositImpact, calculateExpectedProfit, recommendMinimumSafeDeposit } from '../lib/finance';
+import { isLiveBackend } from '../lib/demoMode';
+import { newIdempotencyKey } from '../lib/apiClient';
+import { createProject } from '../services/projects';
 import type { ProjectCost } from '../types';
 
 const STEPS = ['Details', 'Client', 'Price', 'Deposit', 'Costs', 'Review'] as const;
@@ -34,6 +37,10 @@ export function CreateProjectPage() {
   const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const [created, setCreated] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  // One key per form session: a double-click or retry replays the first response instead of creating twice.
+  const [idempotencyKey] = useState(() => newIdempotencyKey());
   const router = useRouter();
 
   const step = STEPS[stepIndex];
@@ -54,9 +61,34 @@ export function CreateProjectPage() {
     (step === 'Costs' && costs.length > 0) ||
     step === 'Review';
 
-  function next() {
-    if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1);
-    else setCreated(true);
+  async function next() {
+    if (stepIndex < STEPS.length - 1) {
+      setStepIndex(stepIndex + 1);
+      return;
+    }
+    if (!isLiveBackend()) {
+      setCreated(true);
+      return;
+    }
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      await createProject(
+        {
+          name: draft.name.trim(),
+          clientName: draft.clientName.trim(),
+          revenue,
+          depositPct: draft.depositPct,
+          costs: costs.map((c) => ({ label: c.label, category: c.category, amount: c.amount })),
+        },
+        idempotencyKey,
+      );
+      setCreated(true);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Could not create the project');
+    } finally {
+      setSubmitting(false);
+    }
   }
   function back() {
     if (stepIndex > 0) setStepIndex(stepIndex - 1);
@@ -197,12 +229,18 @@ export function CreateProjectPage() {
         )}
       </motion.div>
 
+      {submitError && (
+        <p role="alert" className="mt-4 text-sm text-thread-600">
+          {submitError}
+        </p>
+      )}
+
       <div className="mt-6 flex justify-between">
-        <Button variant="ghost" onClick={back} disabled={stepIndex === 0}>
+        <Button variant="ghost" onClick={back} disabled={stepIndex === 0 || submitting}>
           Back
         </Button>
-        <Button onClick={next} disabled={!canContinue}>
-          {step === 'Review' ? 'Create project' : 'Continue'}
+        <Button onClick={next} disabled={!canContinue || submitting}>
+          {step === 'Review' ? (submitting ? 'Creating…' : 'Create project') : 'Continue'}
         </Button>
       </div>
     </div>

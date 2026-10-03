@@ -5,6 +5,9 @@ import { useProjectStore } from '../../store/projectStore';
 import { getCopilotInsight, type CopilotRoute } from '../../services/copilot';
 import { answerCopilotQuestion, formatDaysToCashLabel, type CopilotChatContext } from '../../services/copilotChat';
 import { kemiProfile } from '../../data/demoData';
+import { isLiveBackend } from '../../lib/demoMode';
+import { askBackendCopilot } from '../../services/copilotBackend';
+import { resolveBackendProjectId } from '../../services/projectWorkspace';
 import type { CopilotInsight, CopilotMessage } from './copilot.types';
 
 interface CopilotContextValue {
@@ -79,18 +82,34 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
       if (!trimmed) return;
       const userMessage: CopilotMessage = { id: newMessageId(), role: 'user', text: trimmed, createdAt: new Date().toISOString() };
       const answer = answerCopilotQuestion(trimmed, chatContext());
-      const assistantMessage: CopilotMessage = {
+      const toAssistant = (a: { text: string; actions?: CopilotMessage['actions']; proposal?: CopilotMessage['proposal'] }): CopilotMessage => ({
         id: newMessageId(),
         role: 'assistant',
-        text: answer.text,
-        actions: answer.actions,
-        proposal: answer.proposal,
-        proposalStatus: answer.proposal ? 'pending' : undefined,
+        text: a.text,
+        actions: a.actions,
+        proposal: a.proposal,
+        proposalStatus: a.proposal ? 'pending' : undefined,
         createdAt: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, userMessage, assistantMessage]);
+      });
+
+      // Mock mode, and the draft-and-confirm tools (scope/classify/nudge, which
+      // propose changes to the local project), stay on the local assistant.
+      if (!isLiveBackend() || answer.proposal) {
+        setMessages((prev) => [...prev, userMessage, toAssistant(answer)]);
+        return;
+      }
+
+      // Live mode: ask the backend copilot (answers come from the engine's numbers
+      // for the matching backend project). If it is unreachable or the project is
+      // not on the backend, fall back to the local answer instead of showing an error.
+      setMessages((prev) => [...prev, userMessage]);
+      resolveBackendProjectId({ id: project.id, name: project.name })
+        .then((backendId) => askBackendCopilot(trimmed, backendId))
+        .then((reply) => (reply.text ? toAssistant(reply) : toAssistant(answer)))
+        .catch(() => toAssistant(answer))
+        .then((assistantMessage) => setMessages((prev) => [...prev, assistantMessage]));
     },
-    [chatContext],
+    [chatContext, project.id, project.name],
   );
 
   const resolveProposal = useCallback(
