@@ -46,7 +46,7 @@ export function CopilotButton({ insight, isOpen, onClick }: CopilotButtonProps) 
           <span className="truncate text-sm font-medium">{insight!.headline}</span>
         </span>
       ) : (
-        <span className="text-sm font-medium">Ask Copilot</span>
+        <span className="hidden text-sm font-medium sm:inline">Ask Copilot</span>
       )}
     </motion.button>
   );

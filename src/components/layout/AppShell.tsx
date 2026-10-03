@@ -83,20 +83,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Desktop header: notifications + account. The sidebar carries
               primary navigation, so this row only ever needs to hold the
               two utility menus — kept slim rather than a full header bar. */}
-          <div className="hidden items-center justify-end gap-1 border-b border-ink-900/10 bg-bone-50/90 px-6 py-3 backdrop-blur lg:flex">
+          <div className="relative z-40 hidden items-center justify-end gap-1 border-b border-ink-900/10 bg-bone-50/90 px-6 py-3 backdrop-blur lg:flex">
             <NotificationsMenu />
             <AccountMenu />
           </div>
 
           {/* Mobile top bar: wordmark + the same two utility menus. */}
-          <div className="flex items-center justify-between border-b border-ink-900/10 bg-bone-50/90 px-4 py-3 backdrop-blur lg:hidden">
+          <div className="relative z-40 flex items-center justify-between border-b border-ink-900/10 bg-bone-50/90 px-4 py-3 backdrop-blur lg:hidden">
             <span className="font-display text-lg italic text-ink-900">CREW</span>
             <div className="flex items-center gap-1">
               <NotificationsMenu />
               <AccountMenu />
             </div>
           </div>
-          <main className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-10">
+          <main className="mx-auto min-w-0 max-w-5xl px-4 pb-32 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-10">
             <AnimatePresence mode="wait">
               <motion.div
                 key={pathname}

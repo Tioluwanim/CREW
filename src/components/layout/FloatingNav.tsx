@@ -40,20 +40,20 @@ export function FloatingNav() {
             : 'border-white/10 bg-bone-50/60 px-5 py-2.5 shadow-[0_4px_20px_-10px_rgba(20,23,31,0.25)]',
         )}
       >
-        <Link href="/" className="flex items-center gap-1.5 pl-1">
+        <Link href="/" aria-label="CREW home" className="flex items-center gap-1.5 rounded-sm pl-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ink-900">
           <span className="font-display text-lg italic leading-none text-ink-900">CREW</span>
         </Link>
 
         <nav className="flex items-center gap-1">
           <Link
             href="/demo"
-            className="hidden rounded-full px-3.5 py-1.5 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-900/5 hover:text-ink-900 sm:inline-block"
+            className="hidden rounded-full px-3.5 py-1.5 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-900/5 hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900 sm:inline-block"
           >
             Explore the demo
           </Link>
           <Link
             href="/app"
-            className="inline-flex items-center gap-1.5 rounded-full bg-ink-900 px-4 py-1.5 text-sm font-medium text-bone-50 transition-colors hover:bg-ink-800"
+            className="inline-flex items-center gap-1.5 rounded-full bg-ink-900 px-4 py-1.5 text-sm font-medium text-bone-50 transition-colors hover:bg-ink-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900"
           >
             Open workspace
           </Link>

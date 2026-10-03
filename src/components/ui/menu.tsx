@@ -17,7 +17,7 @@ export function MenuPanel({
       exit={{ opacity: 0, y: -6, scale: 0.98 }}
       transition={{ type: 'spring', stiffness: 420, damping: 32 }}
       className={cn(
-        'absolute top-[calc(100%+0.5rem)] z-50 w-[min(90vw,20rem)] origin-top rounded-2xl border border-ink-900/10 bg-white/95 p-1.5 shadow-[var(--shadow-ledger)] backdrop-blur-md',
+        'absolute top-[calc(100%+0.5rem)] z-[60] w-[min(90vw,22rem)] origin-top rounded-2xl border border-ink-900/10 bg-white/95 p-1.5 shadow-[0_18px_50px_-24px_rgba(20,23,31,0.5)] backdrop-blur-md',
         align === 'end' ? 'right-0' : 'left-0',
         className,
       )}

@@ -62,10 +62,10 @@ export function BackendWorkspacePanel({ projectId }: { projectId: string }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div><StatLabel>Expected profit</StatLabel><StatValue tone="verified">{String(value(financials, 'expectedProfit'))} {currency(financials)}</StatValue></div>
-        <div><StatLabel>Cash gap</StatLabel><StatValue tone="thread">{String(value(financials, 'cashGap'))} {currency(financials)}</StatValue></div>
-        <div><StatLabel>Received</StatLabel><StatValue>{String(value(reconciliation, 'receivedNaira', 'received'))} {currency(reconciliation)}</StatValue></div>
-        <div><StatLabel>Held</StatLabel><StatValue>{String(value(reconciliation, 'heldNaira', 'held'))} {currency(reconciliation)}</StatValue></div>
+        <div className="min-w-0"><StatLabel>Expected profit</StatLabel><StatValue tone="verified">{String(value(financials, 'expectedProfit'))} {currency(financials)}</StatValue></div>
+        <div className="min-w-0"><StatLabel>Cash gap</StatLabel><StatValue tone="thread">{String(value(financials, 'cashGap'))} {currency(financials)}</StatValue></div>
+        <div className="min-w-0"><StatLabel>Received</StatLabel><StatValue>{String(value(reconciliation, 'receivedNaira', 'received'))} {currency(reconciliation)}</StatValue></div>
+        <div className="min-w-0"><StatLabel>Held</StatLabel><StatValue>{String(value(reconciliation, 'heldNaira', 'held'))} {currency(reconciliation)}</StatValue></div>
       </div>
 
       <div className="grid gap-3 text-sm sm:grid-cols-3">

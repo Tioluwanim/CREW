@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useId, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { AnimatePresence } from 'framer-motion';
 import { formatDistanceToNowStrict } from 'date-fns';
@@ -34,6 +34,7 @@ export function NotificationsMenu() {
   const close = useCallback(() => setOpen(false), []);
   const ref = useDismissableMenu(open, close);
   const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
+  const menuId = useId();
 
   function markAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
@@ -46,10 +47,13 @@ export function NotificationsMenu() {
   return (
     <div ref={ref} className="relative">
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
         aria-expanded={open}
-        className="relative rounded-full p-2 text-ink-500 transition-colors hover:bg-ink-900/5 hover:text-ink-900"
+        aria-haspopup="dialog"
+        aria-controls={menuId}
+        className="relative rounded-full p-2 text-ink-500 transition-colors hover:bg-ink-900/5 hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900"
       >
         <Bell size={19} strokeWidth={2} />
         {unreadCount > 0 && (
@@ -61,13 +65,14 @@ export function NotificationsMenu() {
 
       <AnimatePresence>
         {open && (
-          <MenuPanel align="end" className="p-0">
+          <MenuPanel id={menuId} role="dialog" aria-label="Notifications" align="end" className="max-h-[min(70vh,24rem)] overflow-hidden p-0">
             <div className="flex items-center justify-between border-b border-ink-900/10 px-4 py-3">
               <span className="text-sm font-medium text-ink-900">Notifications</span>
               {unreadCount > 0 && (
                 <button
+                  type="button"
                   onClick={markAllRead}
-                  className="flex items-center gap-1 text-xs font-medium text-ink-500 hover:text-ink-900"
+                  className="flex items-center gap-1 rounded px-1 text-xs font-medium text-ink-500 hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900"
                 >
                   <Check size={13} /> Mark all read
                 </button>
@@ -100,11 +105,11 @@ export function NotificationsMenu() {
                   return (
                     <li key={notification.id}>
                       {notification.href ? (
-                        <Link href={notification.href} onClick={() => markRead(notification.id)} className="block">
+                        <Link href={notification.href} onClick={() => { markRead(notification.id); close(); }} className="block focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-ink-900">
                           {body}
                         </Link>
                       ) : (
-                        <button onClick={() => markRead(notification.id)} className="block w-full text-left">
+                        <button type="button" onClick={() => { markRead(notification.id); close(); }} className="block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-ink-900">
                           {body}
                         </button>
                       )}
@@ -125,6 +130,7 @@ export function AccountMenu() {
   const close = useCallback(() => setOpen(false), []);
   const ref = useDismissableMenu(open, close);
   const initial = kemiProfile.ownerName.charAt(0).toUpperCase();
+  const menuId = useId();
 
   const links = [
     { href: '/app/profile', label: 'Business profile', icon: UserCircle },
@@ -134,17 +140,20 @@ export function AccountMenu() {
   return (
     <div ref={ref} className="relative">
       <button
+        type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="Account menu"
         aria-expanded={open}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-900 text-sm font-semibold text-bone-50 transition-opacity hover:opacity-90"
+        aria-haspopup="dialog"
+        aria-controls={menuId}
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-900 text-sm font-semibold text-bone-50 transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900"
       >
         {initial}
       </button>
 
       <AnimatePresence>
         {open && (
-          <MenuPanel align="end">
+          <MenuPanel id={menuId} role="dialog" aria-label="Account actions" align="end">
             <div className="border-b border-ink-900/10 px-3 py-2.5">
               <p className="text-sm font-medium text-ink-900">{kemiProfile.businessName}</p>
               <p className="text-[12px] text-ink-500">{kemiProfile.craft}</p>
@@ -155,7 +164,7 @@ export function AccountMenu() {
                   key={link.href}
                   href={link.href}
                   onClick={close}
-                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-700 hover:bg-ink-900/5 hover:text-ink-900"
+                  className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-700 hover:bg-ink-900/5 hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-ink-900"
                 >
                   <link.icon size={16} strokeWidth={2} />
                   {link.label}
@@ -166,7 +175,7 @@ export function AccountMenu() {
               <Link
                 href="/"
                 onClick={close}
-                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-thread-600 hover:bg-thread-100"
+                className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-thread-600 hover:bg-thread-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-thread-600"
               >
                 <LogOut size={16} strokeWidth={2} />
                 Sign out

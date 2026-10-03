@@ -23,7 +23,7 @@ export function StatLabel({ children }: { children: ReactNode }) {
 export function StatValue({ children, tone = 'default' }: { children: ReactNode; tone?: 'default' | 'thread' | 'verified' }) {
   const toneClass =
     tone === 'thread' ? 'text-thread-600' : tone === 'verified' ? 'text-verified-600' : 'text-ink-900';
-  return <div className={cn('num text-2xl font-medium', toneClass)}>{children}</div>;
+  return <div className={cn('num break-words text-xl font-medium sm:text-2xl', toneClass)}>{children}</div>;
 }
 
 type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, keyof HTMLMotionProps<'button'>> &
