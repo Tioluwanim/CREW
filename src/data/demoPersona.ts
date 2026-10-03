@@ -7,12 +7,9 @@ import type { ChangeRequest, ProjectCost, ScopeItem } from '../types';
 // /app dashboard seed state, onboarding — imports Kemi's numbers from here.
 // Nothing hardcodes them a second time.
 //
-// PIVOT NOTE: this replaces the previous fashion-designer persona (Amara
-// Studio / Aso-ebi order) entirely, per the confirmed product pivot to a
-// content-creator/brand-deal story. One canonical persona lives here — do
-// not add a second "canonical" persona file; that exact ambiguity (two
-// different numbers for "the demo project") has already caused drift once
-// in this repo's history.
+// The canonical persona is a content-creator brand deal. One canonical
+// persona lives here so the landing page, demo workspace, and API fixtures
+// cannot drift into different project stories.
 //
 // This file holds RAW INPUTS ONLY: price, scope, costs (with who actually
 // funds each one and when it's paid), deposit %, expected payment window,

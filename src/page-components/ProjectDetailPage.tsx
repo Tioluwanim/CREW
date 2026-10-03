@@ -21,6 +21,8 @@ import {
   buildCashFlowProjection,
 } from '../lib/finance';
 import type { ChangeRequest, Milestone, MilestoneStatus, Project, PaymentStatus } from '../types';
+import { USE_MOCK_API } from '../lib/apiConfig';
+import { BackendWorkspacePanel } from '../features/projects/BackendWorkspacePanel';
 
 const TABS = ['Overview', 'Scope', 'Changes', 'Payments', 'Costs & Profit', 'Timeline'] as const;
 type Tab = (typeof TABS)[number];
@@ -91,6 +93,7 @@ export function ProjectDetailPage() {
 
   return (
     <div>
+      {!USE_MOCK_API && <div className="mb-6"><BackendWorkspacePanel projectId={project.id} /></div>}
       <header className="mb-6">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="font-display text-3xl text-ink-900">{project.name}</h1>

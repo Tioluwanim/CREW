@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense, lazy } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Check, Sparkles } from 'lucide-react';
@@ -21,8 +21,6 @@ import {
   sumCreatorFundedCosts,
 } from '../lib/finance';
 import { HERO_BEAT_RANGES } from '../lib/heroBeats';
-
-const HeroScene = lazy(() => import('../components/landing/HeroScene').then((m) => ({ default: m.HeroScene })));
 
 export function LandingExperience() {
   useLenisScroll();
@@ -126,18 +124,14 @@ function PinnedOpeningScene() {
   return (
     <section ref={containerRef} className="relative" style={{ height: '400vh' }}>
       <div className="sticky top-0 flex h-screen items-center justify-center overflow-hidden">
-        <div className="pointer-events-none absolute inset-0">
-          <Suspense fallback={null}>
-            <HeroScene progress={progress} />
-          </Suspense>
-        </div>
+        <CreatorProjectScene progress={progress} />
 
-        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-5 text-center sm:px-8">
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-start justify-center px-5 pt-[12vh] text-center sm:px-8">
           {BEAT_TEXTS.map((beat) =>
             beat.big ? (
               <div
                 key={beat.text}
-                className="absolute left-1/2 w-[min(90vw,48rem)] -translate-x-1/2 font-display text-[clamp(2rem,8vw,3.75rem)] leading-[1.04] text-ink-900 text-balance"
+                className="absolute left-1/2 w-[min(90vw,38rem)] -translate-x-1/2 rounded-2xl bg-bone-50/90 px-4 py-2 font-display text-[clamp(2rem,8vw,3.75rem)] leading-[1.04] text-ink-900 shadow-sm backdrop-blur text-balance"
               >
                 {beat.text.split(' ').map((word, i, arr) => {
                   const wordOffset = i * 0.015;
@@ -166,7 +160,7 @@ function PinnedOpeningScene() {
             ) : (
               <p
                 key={beat.text}
-                className="absolute left-1/2 w-[min(86vw,36rem)] -translate-x-1/2 font-display text-[clamp(1.35rem,4vw,1.875rem)] leading-tight text-ink-500 text-balance"
+                className="absolute left-1/2 w-[min(86vw,36rem)] -translate-x-1/2 rounded-xl bg-bone-50/90 px-4 py-2 font-display text-[clamp(1.35rem,4vw,1.875rem)] leading-tight text-ink-500 shadow-sm backdrop-blur text-balance"
                 style={{
                   opacity: beatOpacity(progress, beat.range, beat.holdAtEnd),
                   filter: `blur(${(1 - beatOpacity(progress, beat.range, beat.holdAtEnd)) * 2.5}px)`,
@@ -198,6 +192,85 @@ function PinnedOpeningScene() {
       </div>
     </section>
   );
+}
+
+function CreatorProjectScene({ progress }: { progress: number }) {
+  const settled = progress > 0.76;
+  const review = progress > 0.48;
+
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden bg-bone-100/35 px-5 pt-16"
+    >
+      <div className="absolute left-[8%] top-[18%] h-40 w-40 rounded-full bg-gold-100/80 blur-3xl" />
+      <div className="absolute bottom-[12%] right-[8%] h-56 w-56 rounded-full bg-thread-100/60 blur-3xl" />
+      <div className="relative w-[min(94vw,66rem)]">
+        <div className="mb-3 flex items-center justify-between px-1 text-[10px] font-medium uppercase tracking-[0.2em] text-ink-500/70">
+          <span>Creator workspace</span>
+          <span className="num">KEMI / 01</span>
+        </div>
+        <div className="grid overflow-hidden rounded-2xl border border-ink-900/10 bg-bone-50/90 shadow-[0_24px_80px_rgba(20,23,31,0.14)] backdrop-blur sm:grid-cols-[0.72fr_1.28fr]">
+          <div className="border-b border-ink-900/10 p-5 sm:border-b-0 sm:border-r sm:p-8">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-ink-900 font-display text-lg text-bone-50">K</div>
+              <div>
+                <p className="font-medium text-ink-900">Kemi Ade</p>
+                <p className="text-xs text-ink-500">Content creator · Lagos</p>
+              </div>
+            </div>
+            <p className="mt-12 max-w-xs font-display text-3xl leading-tight text-ink-900 sm:text-4xl">
+              The work is creative. The project should still feel clear.
+            </p>
+            <div className="mt-8 grid grid-cols-2 gap-3">
+              <HeroMetric label="Projects" value="17" />
+              <HeroMetric label="On-time pay" value="88%" />
+            </div>
+          </div>
+          <div className="p-5 sm:p-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-thread-600">Active project</p>
+                <h3 className="mt-1 font-display text-2xl text-ink-900 sm:text-3xl">Lumo Skincare deal</h3>
+                <p className="mt-1 text-sm text-ink-500">Brand campaign · ₦300,000</p>
+              </div>
+              <span className="rounded-full bg-gold-100 px-3 py-1 text-xs font-medium text-ink-700">{settled ? 'Aligned' : 'In progress'}</span>
+            </div>
+            <div className="mt-7 grid gap-3 sm:grid-cols-2">
+              <HeroPanel title="Agreed scope">
+                <span>3 TikTok videos</span><span>2 Instagram posts</span>
+              </HeroPanel>
+              <HeroPanel title={review ? 'Change request' : 'Payment milestone'} accent={review}>
+                {review ? <><span>+ one more TikTok</span><span className="text-thread-600">Awaiting agreement</span></> : <><span>40% deposit</span><span className="text-verified-600">Payment held safely</span></>}
+              </HeroPanel>
+            </div>
+            <div className="mt-7 border-t border-ink-900/10 pt-5">
+              <div className="flex items-center justify-between text-xs text-ink-500">
+                <span>Project thread</span><span className="num">{settled ? '6 / 6' : review ? '3 / 6' : '2 / 6'} moments</span>
+              </div>
+              <div className="mt-3 flex items-center gap-1.5">
+                {['Agreed', 'Work', 'Change', 'Deliver', 'Approve', 'Paid'].map((item, index) => {
+                  const active = index < (settled ? 6 : review ? 3 : 2);
+                  return <span key={item} className={`h-2 flex-1 rounded-full ${active ? 'bg-verified-600' : 'bg-ink-900/10'}`} title={item} />;
+                })}
+              </div>
+              <p className="mt-4 text-sm leading-relaxed text-ink-700">
+                {settled ? 'Both sides can see what changed, what was delivered, and what happens to the money next.' : 'CREW keeps the brief, change, delivery, approval, and payment in one visible thread.'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroMetric({ label, value }: { label: string; value: string }) {
+  return <div className="rounded-lg border border-ink-900/10 bg-white/60 p-3"><p className="text-[11px] text-ink-500">{label}</p><p className="num mt-1 text-lg text-ink-900">{value}</p></div>;
+}
+
+function HeroPanel({ title, children, accent = false }: { title: string; children: ReactNode; accent?: boolean }) {
+  return <div className={`rounded-xl border p-4 ${accent ? 'border-gold-500/35 bg-gold-100/45' : 'border-ink-900/10 bg-white/55'}`}><p className="mb-2 text-[10px] font-medium uppercase tracking-[0.16em] text-ink-500">{title}</p><div className="space-y-1 text-sm text-ink-800">{children}</div></div>;
 }
 
 /** Splits text into per-word spans for a word-cascade reveal — used sparingly, only on the two most important lines. */
