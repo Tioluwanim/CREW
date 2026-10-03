@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { Check, Sparkles } from 'lucide-react';
 import { Button, Card, Pill } from '../components/ui/primitives';
@@ -22,13 +23,19 @@ import {
 } from '../lib/finance';
 import { HERO_BEAT_RANGES } from '../lib/heroBeats';
 
+const HeroScene = dynamic(() => import('../components/landing/HeroScene').then((module) => module.HeroScene), {
+  ssr: false,
+  loading: () => null,
+});
+
 export function LandingExperience() {
   useLenisScroll();
 
   return (
     <>
       <ScrollProgressBar />
-      <OpeningScene />
+      <CinematicHero />
+      <ProofStrip />
       <ProblemScene />
       <IntroScene />
       <InteractiveDemo />
@@ -96,6 +103,211 @@ function usePrefersReducedMotion() {
 function OpeningScene() {
   const reducedMotion = usePrefersReducedMotion();
   return reducedMotion ? <StaticOpeningScene /> : <PinnedOpeningScene />;
+}
+
+function CinematicHero() {
+  const reducedMotion = usePrefersReducedMotion();
+  return (
+    <section className="relative overflow-hidden px-5 pb-0 pt-5 sm:px-8">
+      <div className="mx-auto max-w-7xl">
+        <header className="relative z-30 flex items-center justify-between rounded-full border border-ink-900/10 bg-bone-50/85 px-4 py-3 shadow-[var(--shadow-ledger)] backdrop-blur-md sm:px-6">
+          <Link href="/" className="font-display text-xl italic text-ink-900" aria-label="CREW home">CREW</Link>
+          <nav className="hidden items-center gap-7 text-sm text-ink-600 md:flex" aria-label="Main navigation">
+            <a href="#how-it-works" className="hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900">How it works</a>
+            <a href="#demo" className="hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900">See the workspace</a>
+            <a href="#voices" className="hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900">For creators</a>
+          </nav>
+          <div className="flex items-center gap-2">
+            <Link href="/demo" className="hidden px-3 py-2 text-sm font-medium text-ink-700 sm:block">Explore demo</Link>
+            <Link href="/app" className="rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-bone-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900">Open workspace</Link>
+          </div>
+        </header>
+      </div>
+      {reducedMotion ? <CinematicStoryStatic /> : <CinematicStory />}
+    </section>
+  );
+}
+
+function CinematicStoryStatic() {
+  return (
+    <div className="mx-auto grid min-h-[78vh] max-w-7xl items-center gap-10 py-20 lg:grid-cols-[0.8fr_1.2fr]">
+      <div>
+        <Pill tone="gold">A creator deal, without the guesswork</Pill>
+        <h1 className="mt-6 max-w-xl font-display text-[clamp(3.3rem,7vw,6.8rem)] leading-[0.9] tracking-[-0.055em] text-ink-900">Make the work.<br /><span className="text-thread-600">Keep the clarity.</span></h1>
+        <p className="mt-7 max-w-md text-base leading-relaxed text-ink-600 sm:text-lg">Kemi&apos;s Lumo campaign, from agreement to approval, in one visible project story.</p>
+        <Link href="/demo" className="mt-8 inline-flex rounded-full bg-ink-900 px-5 py-3 text-sm font-medium text-bone-50">Walk through the deal</Link>
+      </div>
+      <CreatorProjectScene progress={0.86} />
+    </div>
+  );
+}
+
+function CinematicStory() {
+  const { containerRef, progress } = useScrollProgress<HTMLDivElement>();
+  const stages = [
+    { range: [0, 0.22] as const, eyebrow: 'Scene 01 · The brief', title: 'A good deal starts with a clear yes.', body: 'Lumo Skincare and Kemi agree what the campaign includes before the first frame is made.' },
+    { range: [0.22, 0.48] as const, eyebrow: 'Scene 02 · The ask', title: 'Then the brief changes.', body: '“Can you add one more TikTok?” The request is captured before it becomes a quiet source of tension.' },
+    { range: [0.48, 0.72] as const, eyebrow: 'Scene 03 · The decision', title: 'Included, or extra?', body: 'Both sides see the same scope. One decision replaces a long thread of assumptions.' },
+    { range: [0.72, 1] as const, eyebrow: 'Scene 04 · The handoff', title: 'Approval first. Payout after.', body: 'The money stays held until the work is approved. Clarity protects the creator and the client.' },
+  ];
+  return (
+    <div ref={containerRef} className="relative -mx-5 h-[340vh] sm:-mx-8">
+      <div className="sticky top-0 flex h-screen items-center overflow-hidden px-5 sm:px-8">
+        <div className="mx-auto grid w-full max-w-7xl items-center gap-8 md:grid-cols-[0.72fr_1.28fr] md:gap-12 lg:gap-16">
+          <div className="relative z-20">
+            <Pill tone="gold">Kemi Ade · Content creator · Lagos</Pill>
+            {stages.map((stage) => {
+              const opacity = beatOpacity(progress, stage.range);
+              return (
+                <div key={stage.title} className="absolute left-0 top-16 w-[min(90vw,30rem)] transition-[opacity,transform] duration-300" style={{ opacity, transform: `translateY(${(1 - opacity) * 18}px)` }}>
+                  <p className="text-xs font-medium uppercase tracking-[0.2em] text-thread-600">{stage.eyebrow}</p>
+                  <h1 className="mt-5 max-w-xl font-display text-[clamp(2.5rem,6.5vw,6.5rem)] leading-[0.9] tracking-[-0.055em] text-ink-900">{stage.title}</h1>
+                  <p className="mt-7 max-w-md text-base leading-relaxed text-ink-600 sm:text-lg">{stage.body}</p>
+                </div>
+              );
+            })}
+            <div className="absolute left-0 top-[28rem] flex items-center gap-3 text-xs text-ink-500">
+              <span className="h-px w-10 bg-ink-900/20" /> Scroll to follow Kemi&apos;s project
+            </div>
+          </div>
+          <div className="absolute inset-x-0 bottom-3 mx-auto h-[17rem] w-[min(92vw,42rem)] sm:bottom-8 sm:h-[21rem] md:relative md:inset-auto md:bottom-auto md:mx-0 md:h-[32rem] md:w-auto lg:h-[38rem]">
+            <div className="absolute inset-0 rounded-[2rem] bg-thread-100/50 blur-3xl" aria-hidden="true" />
+            <div className="pointer-events-none absolute inset-[-18%] opacity-35" aria-hidden="true">
+              <HeroScene progress={progress} />
+            </div>
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2">
+              <CinematicWorkspace progress={progress} />
+            </div>
+            <div className="absolute bottom-3 right-2 rounded-xl bg-ink-900 px-4 py-3 text-bone-50 shadow-[var(--shadow-ledger)] sm:right-10">
+              <p className="text-[10px] uppercase tracking-[0.18em] text-bone-200/60">Project status</p>
+              <p className="mt-1 text-sm">{progress > 0.72 ? 'Ready to release' : progress > 0.45 ? 'Change under review' : 'Scope aligned'}</p>
+            </div>
+          </div>
+        </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-8 flex justify-center text-[10px] uppercase tracking-[0.25em] text-ink-500/70">scroll to move the story</div>
+      </div>
+    </div>
+  );
+}
+
+function CinematicWorkspace({ progress }: { progress: number }) {
+  const review = progress > 0.3;
+  const resolved = progress > 0.7;
+  return (
+    <div className="relative rotate-[1.5deg] rounded-[1.5rem] border border-ink-900/10 bg-bone-50 p-3 shadow-[0_30px_90px_rgba(20,23,31,0.18)] sm:p-5">
+      <div className="rounded-xl border border-ink-900/10 bg-bone-100/55 p-4 sm:p-6">
+        <div className="flex items-center justify-between border-b border-ink-900/10 pb-4"><div><p className="text-[10px] font-medium uppercase tracking-[0.18em] text-thread-600">Active project</p><h2 className="mt-1 font-display text-2xl text-ink-900 sm:text-3xl">Lumo Skincare</h2></div><Pill tone={resolved ? 'verified' : 'default'}>{resolved ? 'Approved' : 'In progress'}</Pill></div>
+        <div className="grid gap-3 py-5 sm:grid-cols-3"><WorkspaceStat label="Project value" value={resolved ? '₦330k' : '₦300k'} /><WorkspaceStat label="Deposit" value="40%" /><WorkspaceStat label="Payment" value={resolved ? 'Released' : 'Held safely'} /></div>
+        <div className={`rounded-xl border p-4 transition-colors duration-500 ${review ? 'border-gold-500/30 bg-gold-100/50' : 'border-ink-900/10 bg-bone-50/60'}`}><p className="text-xs font-medium uppercase tracking-[0.15em] text-gold-600">{review ? 'Change request' : 'Locked scope'}</p><p className="mt-2 text-sm text-ink-800">{review ? '“Can you add one more TikTok?”' : '3 TikTok videos · 2 Instagram posts'}</p><div className="mt-4 h-1.5 overflow-hidden rounded-full bg-ink-900/10"><div className={`h-full rounded-full transition-all duration-700 ${resolved ? 'w-full bg-verified-600' : review ? 'w-2/3 bg-gold-500' : 'w-1/3 bg-thread-600'}`} /></div><div className="mt-2 flex justify-between text-[11px] text-ink-500"><span>Brief</span><span>Change</span><span>Approval</span><span>Paid</span></div></div>
+        <p className="mt-4 text-xs text-ink-500">{resolved ? 'Both sides approved. Creator payout is now safe to release.' : 'Every decision is visible to both sides.'}</p>
+      </div>
+    </div>
+  );
+}
+
+function EditorialHero() {
+  const reducedMotion = usePrefersReducedMotion();
+  return (
+    <section className="relative overflow-hidden px-5 pb-16 pt-5 sm:px-8 sm:pb-24">
+      <div className="mx-auto max-w-7xl">
+        <header className="relative z-20 flex items-center justify-between rounded-full border border-ink-900/10 bg-bone-50/85 px-4 py-3 shadow-[var(--shadow-ledger)] backdrop-blur-md sm:px-6">
+          <Link href="/" className="font-display text-xl italic text-ink-900" aria-label="CREW home">CREW</Link>
+          <nav className="hidden items-center gap-7 text-sm text-ink-600 md:flex" aria-label="Main navigation">
+            <a href="#how-it-works" className="transition-colors hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900">How it works</a>
+            <a href="#demo" className="transition-colors hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900">See the workspace</a>
+            <a href="#voices" className="transition-colors hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900">For creators</a>
+          </nav>
+          <div className="flex items-center gap-2">
+            <Link href="/demo" className="hidden px-3 py-2 text-sm font-medium text-ink-700 sm:block">Explore demo</Link>
+            <Link href="/app" className="rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-bone-50 transition-transform hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900">Open workspace</Link>
+          </div>
+        </header>
+
+        <div className="grid items-center gap-10 pb-6 pt-16 lg:grid-cols-[0.86fr_1.14fr] lg:gap-16 lg:pt-24">
+          <div className="relative z-10">
+            <Pill tone="gold">For independent creators</Pill>
+            <h1 className="mt-6 max-w-xl font-display text-[clamp(3.3rem,7vw,6.8rem)] leading-[0.9] tracking-[-0.055em] text-ink-900">
+              Make the work.<br />
+              <span className="text-thread-600">Keep the clarity.</span>
+            </h1>
+            <p className="mt-7 max-w-md text-base leading-relaxed text-ink-600 sm:text-lg">
+              CREW keeps your brief, changes, costs, client approval, and payment in one calm project thread — so the creative work can stay creative.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link href="/demo" className="inline-flex items-center rounded-full bg-ink-900 px-5 py-3 text-sm font-medium text-bone-50 transition-transform hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900">
+                Walk through Kemi&apos;s deal
+              </Link>
+              <a href="#how-it-works" className="inline-flex items-center rounded-full border border-ink-900/15 bg-bone-50 px-5 py-3 text-sm font-medium text-ink-800 hover:border-ink-900/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900">
+                See how it works <span className="ml-2" aria-hidden="true">↓</span>
+              </a>
+            </div>
+            <div className="mt-10 flex items-center gap-3 text-xs text-ink-500">
+              <span className="flex -space-x-2" aria-hidden="true">
+                {['K', 'A', 'M'].map((letter) => <span key={letter} className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-bone-100 bg-ink-900 text-[10px] text-bone-50">{letter}</span>)}
+              </span>
+              <span>Made for the person behind the deliverable.</span>
+            </div>
+          </div>
+
+          <HeroWorkspace reducedMotion={reducedMotion} />
+        </div>
+      </div>
+      <div className="pointer-events-none absolute -right-28 top-48 h-96 w-96 rounded-full bg-gold-100/70 blur-3xl" aria-hidden="true" />
+      <div className="pointer-events-none absolute -left-32 bottom-0 h-80 w-80 rounded-full bg-thread-100/60 blur-3xl" aria-hidden="true" />
+    </section>
+  );
+}
+
+function HeroWorkspace({ reducedMotion }: { reducedMotion: boolean }) {
+  return (
+    <div className={`relative ${reducedMotion ? '' : 'animate-[hero-float_7s_ease-in-out_infinite]'}`}>
+      <div className="absolute -left-5 top-12 z-10 hidden rounded-xl border border-ink-900/10 bg-bone-50 px-4 py-3 shadow-[var(--shadow-ledger)] sm:block">
+        <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-ink-500">Client paid</p>
+        <p className="num mt-1 text-lg text-verified-600">Held safely</p>
+      </div>
+      <div className="relative rotate-[1.5deg] rounded-[1.5rem] border border-ink-900/10 bg-bone-50 p-3 shadow-[0_30px_90px_rgba(20,23,31,0.18)] sm:p-5">
+        <div className="rounded-xl border border-ink-900/10 bg-bone-100/55 p-4 sm:p-6">
+          <div className="flex items-center justify-between border-b border-ink-900/10 pb-4">
+            <div><p className="text-[10px] font-medium uppercase tracking-[0.18em] text-thread-600">Active project</p><h2 className="mt-1 font-display text-2xl text-ink-900 sm:text-3xl">Lumo Skincare</h2></div>
+            <Pill tone="verified">In progress</Pill>
+          </div>
+          <div className="grid gap-3 py-5 sm:grid-cols-3">
+            <WorkspaceStat label="Project value" value="₦300k" />
+            <WorkspaceStat label="Deposit" value="40%" />
+            <WorkspaceStat label="Due" value="10 days" />
+          </div>
+          <div className="rounded-xl border border-gold-500/25 bg-gold-100/45 p-4">
+            <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-medium uppercase tracking-[0.15em] text-gold-600">New request</p><p className="mt-1 text-sm text-ink-800">“Can you add one more TikTok?”</p></div><span className="rounded-full bg-bone-50 px-2 py-1 text-[10px] text-ink-600">Needs a decision</span></div>
+            <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-ink-900/10"><div className="h-full w-2/3 rounded-full bg-gold-500" /></div>
+            <div className="mt-2 flex justify-between text-[11px] text-ink-500"><span>Brief</span><span>Change</span><span>Approval</span><span>Paid</span></div>
+          </div>
+          <div className="mt-4 flex items-center justify-between text-xs text-ink-500"><span>Creator cash position</span><span className="num text-ink-900">₦55,000 ahead</span></div>
+        </div>
+      </div>
+      <div className="absolute -bottom-6 -right-3 hidden rounded-xl border border-ink-900/10 bg-ink-900 px-4 py-3 text-bone-50 shadow-[var(--shadow-ledger)] sm:block">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-bone-200/60">Next move</p>
+        <p className="mt-1 text-sm">Agree before you deliver.</p>
+      </div>
+    </div>
+  );
+}
+
+function WorkspaceStat({ label, value }: { label: string; value: string }) {
+  return <div><p className="text-xs text-ink-500">{label}</p><p className="num mt-1 text-xl text-ink-900">{value}</p></div>;
+}
+
+function ProofStrip() {
+  return (
+    <section id="how-it-works" className="border-y border-ink-900/10 bg-bone-50 px-5 py-6 sm:px-8">
+      <div className="mx-auto grid max-w-7xl gap-5 text-sm sm:grid-cols-3 sm:gap-8">
+        {[
+          ['01', 'Agree clearly', 'Lock the scope before the first deliverable.'],
+          ['02', 'Keep the thread', 'Record every change where both sides can see it.'],
+          ['03', 'Release with trust', 'Client approval comes before creator payout.'],
+        ].map(([number, title, body]) => <div key={number} className="flex gap-3"><span className="num text-xs text-thread-600">{number}</span><div><p className="font-medium text-ink-900">{title}</p><p className="mt-1 text-ink-500">{body}</p></div></div>)}
+      </div>
+    </section>
+  );
 }
 
 /** Reduced-motion / no-3D fallback: the original simple stacked-reveal version, no pinning or scene. */
