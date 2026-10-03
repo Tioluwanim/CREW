@@ -7,3 +7,5 @@ PyJWT>=2.7
 psycopg[binary]>=3.1
 alembic>=1.13
 httpx>=0.27          # runtime: default HTTP transport for fintech adapters
+httpx2>=0.1          # Starlette TestClient transport; avoids the deprecated httpx fallback
+torch>=2.8           # optional at runtime for the advisory payment-delay GRU

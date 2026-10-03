@@ -10,7 +10,9 @@ import pytest
 
 from app.payments import registry
 from app.payments.adapters.example_http import ExamplePayProvider
+from app.payments.adapters.ecobank import EcobankProvider
 from app.payments.adapters.sandbox import SandboxProvider
+from app.payments.adapters.verve import VerveProvider
 from app.payments.contract import ProviderContract
 from app.payments.domain import CollectionMethod, CollectionRequest, Customer, WebhookEventType
 from app.payments.errors import NotSupported, ProviderAuthError, ProviderNotConfigured, ProviderRejected
@@ -116,20 +118,57 @@ class TestExamplePayContract(ProviderContract):
             p.verify_collection("EXP-DOESNOTEXIST")
 
 
-# ---------------------------------------------------------------- 3) the two rails you are building next
+# ---------------------------------------------------------------- 3) configurable bank and card rails
 @pytest.mark.parametrize("name", ["ecobank", "verve"])
-def test_skeleton_adapters_are_honest(name):
+def test_provider_adapters_are_honest_when_unconfigured(name):
     p = registry.get(name)
     caps = p.capabilities
-    assert not any([caps.checkout, caps.virtual_accounts, caps.payouts, caps.statement, caps.webhooks, caps.account_name_lookup]), "a skeleton must not claim what it can't do"
+    assert not any([caps.checkout, caps.virtual_accounts, caps.payouts, caps.statement, caps.webhooks, caps.account_name_lookup])
     for call in (lambda: p.create_collection(CollectionRequest("X", 100, Customer("A"))), lambda: p.verify_collection("X"),
-                 lambda: p.verify_webhook({}, b"{}"), lambda: p.parse_webhook(b"{}")):
+                 lambda: p.verify_webhook({}, b"{}")):
         with pytest.raises(ProviderNotConfigured) as e:
             call()
-        assert name.capitalize() in str(e.value)
+        assert name.upper() in str(e.value) or name.capitalize() in str(e.value)
+    assert p.parse_webhook(b"{}")[0].type == WebhookEventType.IGNORED
     with pytest.raises(NotSupported):
         p.open_virtual_account(None)
     assert p.reference_prefix and p.name == name
+
+
+class FakeGateway(HttpClient):
+    def __init__(self):
+        self.calls = []
+
+    def request(self, method, url, *, headers=None, json=None, params=None, timeout=15.0):
+        self.calls.append((method, url, headers or {}, json))
+        if url.endswith("/token") or url.endswith("/get_api_token"):
+            return HttpResponse(200, {"access_token": "token-1"})
+        if method == "POST":
+            return HttpResponse(201, {"transactionId": "provider-1", "paymentUrl": "https://checkout.test/1"})
+        return HttpResponse(200, {
+            "status": "successful", "amount": "1234.56", "transactionId": "provider-1",
+            "paidAt": NOW(),
+        })
+
+
+@pytest.mark.parametrize(
+    ("provider_type", "base", "prefix"),
+    [(EcobankProvider, "ECOBANK", "ECO-"), (VerveProvider, "VERVE", "VRV-")],
+)
+def test_configured_provider_adapters_execute_oauth_collection_and_verification(monkeypatch, provider_type, base, prefix):
+    monkeypatch.setenv(f"{base}_BASE_URL", f"https://{base.lower()}.test")
+    monkeypatch.setenv(f"{base}_CLIENT_ID", "client")
+    monkeypatch.setenv(f"{base}_CLIENT_SECRET", "secret")
+    fake = FakeGateway()
+    p = provider_type(ProviderHttp(f"https://{base.lower()}.test", fake, sleep=lambda _: None))
+    session = p.create_collection(CollectionRequest(prefix + "1", 123_456, Customer("A")))
+    result = p.verify_collection(session.reference)
+    assert session.provider_ref == "provider-1"
+    assert result.status.value == "succeeded"
+    assert result.amount_kobo == 123_456
+    assert len(fake.calls) == 3
+    assert fake.calls[1][2]["authorization"] == "Bearer token-1"
+    assert fake.calls[1][2]["idempotency-key"] == prefix + "1"
 
 
 def test_registry_lists_providers_and_rejects_unknown_names():

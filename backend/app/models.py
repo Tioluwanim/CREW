@@ -5,7 +5,7 @@ from __future__ import annotations
 import secrets
 from datetime import date, datetime, timezone
 
-from sqlalchemy import JSON, BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, BigInteger, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -61,6 +61,10 @@ class Client(Base):
     name: Mapped[str] = mapped_column(String)
     email: Mapped[str | None] = mapped_column(String, nullable=True)
     phone: Mapped[str | None] = mapped_column(String, nullable=True)
+    country: Mapped[str | None] = mapped_column(String, nullable=True)
+    preferred_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    billing_currency: Mapped[str | None] = mapped_column(String(3), nullable=True)
+    timezone: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     projects: Mapped[list["Project"]] = relationship(back_populates="client")
 
@@ -73,6 +77,7 @@ class Project(Base):
     name: Mapped[str] = mapped_column(String)
     craft: Mapped[str] = mapped_column(String, default="")
     revenue_kobo: Mapped[int] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(String(3), default="NGN")
     deposit_pct: Mapped[int] = mapped_column(Integer, default=0)
     expected_payment_days: Mapped[int] = mapped_column(Integer, default=14)
     revisions_included: Mapped[int] = mapped_column(Integer, default=2)
@@ -97,6 +102,7 @@ class Cost(Base):
     label: Mapped[str] = mapped_column(String)
     category: Mapped[str] = mapped_column(String, default="other")  # free-form (docs/DECISIONS.md #1)
     amount_kobo: Mapped[int] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(String(3), default="NGN")
     estimated_amount_kobo: Mapped[int | None] = mapped_column(BigInteger, nullable=True)  # original quote, for overrun tracking
     funded_by: Mapped[str] = mapped_column(String, default="creator")  # creator | client
     paid_on_day: Mapped[int] = mapped_column(Integer, default=0)
@@ -126,6 +132,7 @@ class Milestone(Base):
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
     title: Mapped[str] = mapped_column(String)
     amount_kobo: Mapped[int] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(String(3), default="NGN")
     deliverable_id: Mapped[str | None] = mapped_column(ForeignKey("deliverables.id"), nullable=True)
     change_request_id: Mapped[str | None] = mapped_column(String, nullable=True)
     funded_kobo: Mapped[int] = mapped_column(BigInteger, default=0)
@@ -170,6 +177,7 @@ class Invoice(Base):
     kind: Mapped[str] = mapped_column(String, default="deposit")  # deposit | balance | milestone | change
     milestone_id: Mapped[str | None] = mapped_column(String, nullable=True)
     amount_kobo: Mapped[int] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(String(3), default="NGN")
     due_date: Mapped[date] = mapped_column(Date)
     status: Mapped[str] = mapped_column(String, default="draft")  # draft | pending_approval | sent | paid | void
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -187,6 +195,7 @@ class Payment(Base):
     virtual_account_id: Mapped[str | None] = mapped_column(String, nullable=True)
     reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     amount_kobo: Mapped[int] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(String(3), default="NGN")
     status: Mapped[str] = mapped_column(String, default="pending")  # pending | unverified | verified | failed
     method: Mapped[str] = mapped_column(String, default="link")  # manual | link | virtual_account
     provider: Mapped[str] = mapped_column(String, default="sandbox")
@@ -202,6 +211,7 @@ class Payout(Base):
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
     milestone_id: Mapped[str] = mapped_column(String)
     amount_kobo: Mapped[int] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(String(3), default="NGN")
     reference: Mapped[str] = mapped_column(String, unique=True)
     provider: Mapped[str] = mapped_column(String)
     provider_ref: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -246,10 +256,44 @@ class Transaction(Base):
     project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
     direction: Mapped[str] = mapped_column(String)  # inflow | outflow
     amount_kobo: Mapped[int] = mapped_column(BigInteger)
+    currency: Mapped[str] = mapped_column(String(3), default="NGN")
     occurred_on: Mapped[date] = mapped_column(Date)
     category: Mapped[str] = mapped_column(String, default="")
     source: Mapped[str] = mapped_column(String)  # sandbox | ecobank | manual
     source_ref: Mapped[str] = mapped_column(String, unique=True)  # idempotency key
+
+
+class ModelRun(Base):
+    __tablename__ = "model_runs"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: new_id("run"))
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    model_version: Mapped[str] = mapped_column(String)
+    architecture: Mapped[str] = mapped_column(String)
+    dataset_version: Mapped[str] = mapped_column(String)
+    training_sample_count: Mapped[int] = mapped_column(Integer, default=0)
+    training_cutoff: Mapped[date | None] = mapped_column(Date, nullable=True)
+    validation_cutoff: Mapped[date | None] = mapped_column(Date, nullable=True)
+    validation_metrics: Mapped[dict] = mapped_column(JSON, default=dict)
+    artifact_reference: Mapped[str | None] = mapped_column(String, nullable=True)
+    config: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    predictions: Mapped[list["ModelPrediction"]] = relationship(back_populates="model_run", cascade="all, delete-orphan")
+
+
+class ModelPrediction(Base):
+    __tablename__ = "model_predictions"
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: new_id("pred"))
+    model_run_id: Mapped[str] = mapped_column(ForeignKey("model_runs.id"), index=True)
+    owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    project_id: Mapped[str] = mapped_column(ForeignKey("projects.id"), index=True)
+    predicted_delay_days: Mapped[float] = mapped_column(Float)
+    confidence: Mapped[float] = mapped_column(Float)
+    prediction_cutoff: Mapped[date] = mapped_column(Date)
+    currency: Mapped[str] = mapped_column(String(3), default="NGN")
+    provenance: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String, default="advisory")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    model_run: Mapped[ModelRun] = relationship(back_populates="predictions")
 
 
 class Notification(Base):

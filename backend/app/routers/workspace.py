@@ -12,10 +12,11 @@ from app.config import get_settings
 from app.db import get_db
 from app.deps import current_user, owned_project
 from app.extension.registry import get_agent, get_forecaster
-from app.services import events, finance, idempotency, intelligence_service, lifecycle, messaging, payments, portfolio
+from app.services import events, finance, idempotency, intelligence_service, lifecycle, messaging, payments, portfolio, dl
 from app.services.serializers import change_out, deliverable_out, event_out, invoice_out, milestone_out, payment_out
 from intelligence import money
 from intelligence.dates import today_lagos
+from intelligence.simulation import SimulationEngine
 
 router = APIRouter(tags=["Workspace"])
 
@@ -252,6 +253,66 @@ def reconciliation(project_id: str, user: models.User = Depends(current_user), d
 @router.get("/projects/{project_id}/intelligence")
 def project_intel(project_id: str, user: models.User = Depends(current_user), db: Session = Depends(get_db)):
     return intelligence_service.project_intelligence(db, owned_project(project_id, user, db))
+
+
+@router.get("/projects/{project_id}/forecast")
+def project_forecast(project_id: str, horizon_days: int = Query(30, ge=1, le=365),
+                     user: models.User = Depends(current_user), db: Session = Depends(get_db)):
+    return intelligence_service.forecast_report(db, owned_project(project_id, user, db), horizon_days)
+
+
+@router.get("/projects/{project_id}/simulation")
+def project_simulation(project_id: str, seed: int = Query(42), run_count: int = Query(1000, ge=1, le=10000),
+                       user: models.User = Depends(current_user), db: Session = Depends(get_db)):
+    p = owned_project(project_id, user, db)
+    result = SimulationEngine.run_monte_carlo(
+        finance.to_dto(p), p.expected_payment_days, [40, 50, 60, 70], seed=seed, run_count=run_count
+    )
+    return {
+        "projectId": p.id, "currency": p.currency, "seed": seed, "runCount": run_count,
+        "engineVersion": result.engine_version, "scenarios": [s.__dict__ for s in result.scenarios],
+    }
+
+
+@router.get("/projects/{project_id}/deposit-analysis")
+def project_deposit_analysis(project_id: str, user: models.User = Depends(current_user), db: Session = Depends(get_db)):
+    return intelligence_service.deposit_analysis(db, owned_project(project_id, user, db))
+
+
+@router.get("/projects/{project_id}/cost-buffer")
+def project_cost_buffer(project_id: str, user: models.User = Depends(current_user), db: Session = Depends(get_db)):
+    return intelligence_service.cost_buffer_analysis(db, owned_project(project_id, user, db))
+
+
+@router.get("/projects/{project_id}/copilot-context")
+def project_copilot_context(project_id: str, user: models.User = Depends(current_user), db: Session = Depends(get_db)):
+    return intelligence_service.copilot_context(db, owned_project(project_id, user, db))
+
+
+@router.get("/dl/dataset")
+def dl_dataset(user: models.User = Depends(current_user), db: Session = Depends(get_db)):
+    return dl.dataset_summary(db, user.id)
+
+
+@router.get("/dl/model-status")
+def dl_model_status(user: models.User = Depends(current_user), db: Session = Depends(get_db)):
+    return dl.status(db, user.id)
+
+
+@router.post("/dl/train")
+def dl_train(body: schemas.DLTrainIn, user: models.User = Depends(current_user), db: Session = Depends(get_db)):
+    try:
+        return dl.train(db, user.id, body.epochs, body.seed)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.post("/projects/{project_id}/dl/prediction")
+def dl_prediction(project_id: str, user: models.User = Depends(current_user), db: Session = Depends(get_db)):
+    try:
+        return dl.predict(db, user.id, owned_project(project_id, user, db))
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
 
 
 @router.get("/genome")

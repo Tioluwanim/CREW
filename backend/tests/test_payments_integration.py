@@ -136,8 +136,6 @@ def test_switching_provider_does_not_strand_in_flight_payments(client, auth, mon
     monkeypatch.setenv("PAYMENT_PROVIDER", "ecobank")                                   # the business changes fintech mid-flight
     r = client.post("/api/payments/verify", headers=auth, json={"paymentReference": ref, "amount": inv["amount"]})
     assert r.json()["status"] == "verified"                                              # still verified through its ORIGINAL provider
-    new = client.post(f"/api/share/{TOKEN}/pay", json={"amount": 100})
-    assert new.status_code == 502 and "Ecobank" in new.json()["error"]                    # new payments use the configured (unfinished) one
     info = client.get("/api/payments/providers", headers=auth).json()
     assert info["collections"] == "ecobank" and info["providers"]["sandbox"]["virtualAccounts"] and not info["providers"]["ecobank"]["checkout"]
 

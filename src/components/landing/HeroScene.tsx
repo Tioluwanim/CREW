@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, Environment } from '@react-three/drei';
 import * as THREE from 'three';
+import { getProject } from '@theatre/core';
 import { kemiProject } from '../../data/demoData';
 import { kemiPersona } from '../../data/demoPersona';
 import { HERO_BEAT_RANGES as BEATS } from '../../lib/heroBeats';
@@ -51,6 +52,32 @@ function lerpColor(hexA: string, hexB: string, t: number) {
 const THREAD_RED = '#8a2c2c';
 const VERIFIED_GREEN = '#2f6b4f';
 const GOLD = '#b8944f';
+
+const theatreProject = getProject('CREW landing film', {
+  state: {
+    sheetsById: {},
+    revisionHistory: [],
+    definitionVersion: '0.4.0',
+  },
+});
+const theatreSheet = theatreProject.sheet('Social creator story');
+const theatreScene = theatreSheet.object('Scene direction', {
+  lift: 0,
+  warmth: 0,
+});
+
+function TheatreDirector({ progress }: HeroSceneProps) {
+  const { scene } = useThree();
+
+  useFrame(() => {
+    theatreSheet.sequence.position = progress * 8;
+    const { lift, warmth } = theatreScene.value;
+    scene.position.y = lift * 0.08;
+    scene.rotation.z = warmth * 0.012;
+  });
+
+  return null;
+}
 
 /**
  * Flattens the canonical scope (demoPersona.ts) into one tile per
@@ -369,6 +396,7 @@ function Scene({ progress, compact }: HeroSceneProps & { compact: boolean }) {
       <pointLight position={[-2.4, 0.6, 2.6]} intensity={0.4} color={GOLD} />
 
       <CameraRig progress={progress} compact={compact} />
+      <TheatreDirector progress={progress} />
 
       <Desk />
       <DMNotification progress={progress} />

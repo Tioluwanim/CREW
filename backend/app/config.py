@@ -20,7 +20,7 @@ def _origins() -> tuple[str, ...]:
 @dataclass(frozen=True)
 class Settings:
     database_url: str = field(default_factory=lambda: _env("DATABASE_URL", "sqlite:///./crew.db"))
-    jwt_secret: str = field(default_factory=lambda: _env("JWT_SECRET", "dev-only-change-me"))
+    jwt_secret: str = field(default_factory=lambda: _env("JWT_SECRET", "dev-only-change-me-please-rotate-32"))
     jwt_ttl_minutes: int = field(default_factory=lambda: int(_env("JWT_TTL_MINUTES", "1440")))
     cors_origins: tuple[str, ...] = field(default_factory=_origins)
     public_app_url: str = field(default_factory=lambda: _env("PUBLIC_APP_URL", "http://localhost:3000"))
@@ -31,6 +31,11 @@ class Settings:
     ecobank_base_url: str = field(default_factory=lambda: _env("ECOBANK_BASE_URL"))
     ecobank_client_id: str = field(default_factory=lambda: _env("ECOBANK_CLIENT_ID"))
     ecobank_client_secret: str = field(default_factory=lambda: _env("ECOBANK_CLIENT_SECRET"))
+    ecobank_webhook_secret: str = field(default_factory=lambda: _env("ECOBANK_WEBHOOK_SECRET"))
+    verve_base_url: str = field(default_factory=lambda: _env("VERVE_BASE_URL"))
+    verve_client_id: str = field(default_factory=lambda: _env("VERVE_CLIENT_ID"))
+    verve_client_secret: str = field(default_factory=lambda: _env("VERVE_CLIENT_SECRET"))
+    verve_webhook_secret: str = field(default_factory=lambda: _env("VERVE_WEBHOOK_SECRET"))
     forecaster: str = field(default_factory=lambda: _env("FORECASTER", "baseline"))
     agent: str = field(default_factory=lambda: _env("AGENT_RUNTIME", "null"))
     smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST"))  # empty = console fallback (messages marked `logged`)
@@ -43,6 +48,7 @@ class Settings:
     env: str = field(default_factory=lambda: _env("CREW_ENV", "development"))  # development | production
     demo_auto_auth: bool = field(default_factory=lambda: _bool("DEMO_AUTO_AUTH"))  # dev only: no header -> demo user
     auto_create_tables: bool = field(default_factory=lambda: _bool("AUTO_CREATE_TABLES", True))  # False when using Alembic
+    dl_artifact_dir: str = field(default_factory=lambda: _env("DL_ARTIFACT_DIR", "./artifacts"))
 
 
 def get_settings() -> Settings:
@@ -54,7 +60,7 @@ def assert_production_safe(s: Settings) -> None:
     if s.env != "production":
         return
     problems = []
-    if s.jwt_secret in ("", "dev-only-change-me") or len(s.jwt_secret) < 32:
+    if s.jwt_secret in ("", "dev-only-change-me", "dev-only-change-me-please-rotate-32") or len(s.jwt_secret) < 32:
         problems.append("JWT_SECRET must be set to a random value of at least 32 characters")
     if s.webhook_secret in ("", "dev-webhook-secret") or len(s.webhook_secret) < 16:
         problems.append("WEBHOOK_SECRET must be set to a random value of at least 16 characters")

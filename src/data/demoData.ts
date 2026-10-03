@@ -89,6 +89,7 @@ export const kemiProject: Project = {
   })(),
 };
 
+
 // Additional demo projects — view-only (not wired into the editable
 // store, unlike kemiProject) so /app/projects and /app/clients read as
 // a populated workspace rather than a single hero project. Their figures

@@ -50,6 +50,7 @@ class CostIn(CamelModel):
     estimated_amount: int | None = Field(None, ge=0)  # what you originally budgeted; amount is the actual/current figure
     funded_by: Literal["creator", "client"] = "creator"
     paid_on_day: int = Field(0, ge=0)
+    currency: str = Field("NGN", min_length=3, max_length=3)
 
 
 class CostPatch(CamelModel):
@@ -59,6 +60,7 @@ class CostPatch(CamelModel):
     estimated_amount: int | None = Field(None, ge=0)
     funded_by: Literal["creator", "client"] | None = None
     paid_on_day: int | None = Field(None, ge=0)
+    currency: str | None = Field(None, min_length=3, max_length=3)
 
 
 class DeliverableIn(CamelModel):
@@ -78,8 +80,13 @@ class ProjectIn(CamelModel):
     client_name: str
     client_email: str | None = None
     client_phone: str | None = None
+    client_country: str | None = None
+    client_preferred_currency: str | None = Field(None, min_length=3, max_length=3)
+    client_billing_currency: str | None = Field(None, min_length=3, max_length=3)
+    client_timezone: str | None = None
     craft: str = ""
     revenue: int = Field(gt=0)
+    currency: str = Field("NGN", min_length=3, max_length=3)
     deposit_pct: int = Field(0, ge=0, le=100)
     expected_payment_days: int = Field(14, ge=0)
     revisions_included: int = Field(2, ge=0)
@@ -96,6 +103,7 @@ class ProjectPatch(CamelModel):
     deposit_pct: int | None = Field(None, ge=0, le=100)
     expected_payment_days: int | None = Field(None, ge=0)
     revisions_included: int | None = Field(None, ge=0)
+    currency: str | None = Field(None, min_length=3, max_length=3)
 
 
 class TransitionIn(CamelModel):
@@ -171,6 +179,11 @@ class SandboxTransferIn(CamelModel):
 class ChatIn(CamelModel):
     message: str
     project_id: str | None = None
+
+
+class DLTrainIn(CamelModel):
+    epochs: int = Field(25, ge=1, le=500)
+    seed: int = 42
 
 
 class WebhookIn(CamelModel):

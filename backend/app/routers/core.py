@@ -13,6 +13,7 @@ from app.services import events, finance, idempotency, intelligence_service, por
 from app.services.finance import naira
 from app.services.serializers import cost_out, project_out
 from intelligence import money
+from intelligence.currency import to_minor_unit
 from intelligence.dates import today_lagos
 
 router = APIRouter()
@@ -39,19 +40,31 @@ def create_project(body: schemas.ProjectIn, idempotency_key: str | None = Header
 def _create_project(body: schemas.ProjectIn, user: models.User, db: Session) -> dict:
     client = db.scalars(select(models.Client).where(models.Client.owner_id == user.id, models.Client.name == body.client_name)).first()
     if not client:
-        client = models.Client(owner_id=user.id, name=body.client_name, email=body.client_email, phone=body.client_phone)
+        client = models.Client(
+            owner_id=user.id,
+            name=body.client_name,
+            email=body.client_email,
+            phone=body.client_phone,
+            country=body.client_country,
+            preferred_currency=body.client_preferred_currency.upper() if body.client_preferred_currency else None,
+            billing_currency=body.client_billing_currency.upper() if body.client_billing_currency else None,
+            timezone=body.client_timezone,
+        )
         db.add(client)
         db.flush()
+    currency = body.currency.upper()
+    if any(c.currency.upper() != currency for c in body.costs):
+        raise HTTPException(422, "All project costs must use the project currency")
     p = models.Project(owner_id=user.id, client_id=client.id, name=body.name, craft=body.craft or (user.profile.craft if user.profile else ""),
-                       revenue_kobo=money.naira_to_kobo(body.revenue), deposit_pct=body.deposit_pct,
+                       revenue_kobo=to_minor_unit(body.revenue, currency), currency=currency, deposit_pct=body.deposit_pct,
                        expected_payment_days=body.expected_payment_days, revisions_included=body.revisions_included,
                        start_date=body.start_date or today_lagos())
     db.add(p)
     db.flush()
     p.client = client
     for c in body.costs:
-        db.add(models.Cost(project_id=p.id, label=c.label, category=c.category, amount_kobo=money.naira_to_kobo(c.amount),
-                           estimated_amount_kobo=money.naira_to_kobo(c.estimated_amount if c.estimated_amount is not None else c.amount),
+        db.add(models.Cost(project_id=p.id, label=c.label, category=c.category, amount_kobo=to_minor_unit(c.amount, currency), currency=currency,
+                           estimated_amount_kobo=to_minor_unit(c.estimated_amount if c.estimated_amount is not None else c.amount, currency),
                            funded_by=c.funded_by, paid_on_day=c.paid_on_day))
     dels = []
     for i, d in enumerate(body.deliverables):
@@ -64,15 +77,15 @@ def _create_project(body: schemas.ProjectIn, user: models.User, db: Session) -> 
             raise HTTPException(422, "Milestone amounts must add up to the project price")
         for i, m in enumerate(body.milestones):
             did = dels[m.deliverable_index].id if m.deliverable_index is not None and 0 <= m.deliverable_index < len(dels) else None
-            db.add(models.Milestone(project_id=p.id, title=m.title, amount_kobo=money.naira_to_kobo(m.amount), deliverable_id=did, position=i))
+            db.add(models.Milestone(project_id=p.id, title=m.title, amount_kobo=to_minor_unit(m.amount, currency), currency=currency, deliverable_id=did, position=i))
     else:  # default: deposit + balance
         dep = finance.deposit_kobo(p)
         pos = 0
         if dep:
-            db.add(models.Milestone(project_id=p.id, title="Deposit", amount_kobo=dep, position=pos))
+            db.add(models.Milestone(project_id=p.id, title="Deposit", amount_kobo=dep, currency=currency, position=pos))
             pos += 1
         if p.revenue_kobo - dep:
-            db.add(models.Milestone(project_id=p.id, title="Balance", amount_kobo=p.revenue_kobo - dep, position=pos))
+            db.add(models.Milestone(project_id=p.id, title="Balance", amount_kobo=p.revenue_kobo - dep, currency=currency, position=pos))
     db.flush()
     events.record(db, p, "creator", "project_created", f"Project created for {client.name}")
     events.notify(db, p, "project_created", "Project created", p.name)

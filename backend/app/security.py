@@ -26,6 +26,8 @@ def verify_password(password: str, stored: str) -> bool:
 def create_token(user_id: str, version: int = 0) -> str:
     s = get_settings()
     exp = datetime.now(timezone.utc) + timedelta(minutes=s.jwt_ttl_minutes)
+    # HS256 requires a sufficiently long secret; production configuration
+    # rejects weak values, while this development default avoids noisy warnings.
     return jwt.encode({"sub": user_id, "tv": version, "exp": exp}, s.jwt_secret, algorithm="HS256")
 
 

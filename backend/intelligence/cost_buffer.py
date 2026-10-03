@@ -1,5 +1,5 @@
 from intelligence.interfaces import CostDTO
-from intelligence import money
+from intelligence.currency import CurrencyMismatchError, to_minor_unit
 
 class BufferEngine:
     # High-volatility categories mapping (case-insensitive checks)
@@ -14,15 +14,18 @@ class BufferEngine:
     }
 
     @classmethod
-    def calculate_dynamic_contingency(cls, costs: list[CostDTO]) -> int:
+    def calculate_dynamic_contingency(cls, costs: list[CostDTO], currency: str = "NGN") -> int:
         """
         Calculates a highly accurate total contingency fund (in Kobo) by 
         applying specific volatility rates to specific cost categories.
         """
         total_contingency_kobo = 0
+        expected = currency.upper()
         
         for cost in costs:
-            cost_kobo = money.naira_to_kobo(cost.amount)
+            if cost.currency.upper() != expected:
+                raise CurrencyMismatchError(f"Cost currency {cost.currency} does not match {expected}")
+            cost_kobo = to_minor_unit(cost.amount, expected)
             category_key = cost.category.lower().strip()
             
             # Match the category to our volatility index, or fall back to default

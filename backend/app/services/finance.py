@@ -9,6 +9,7 @@ from datetime import date, timedelta
 
 from app import models
 from intelligence import money
+from intelligence.currency import from_minor_unit, to_minor_unit
 from intelligence.dates import today_lagos
 from intelligence.financial_engine import FinancialEngine
 from intelligence.interfaces import CostDTO, ProjectDTO
@@ -16,8 +17,8 @@ from intelligence.interfaces import CostDTO, ProjectDTO
 CHECKPOINTS = (0, 3, 7, 14, 30)
 
 
-def naira(kobo: int) -> int:
-    return money.kobo_to_naira(kobo)
+def naira(kobo: int, currency: str = "NGN") -> int | float:
+    return from_minor_unit(kobo, currency)
 
 
 def creator_costs(project: models.Project) -> list[models.Cost]:
@@ -27,9 +28,10 @@ def creator_costs(project: models.Project) -> list[models.Cost]:
 def to_dto(project: models.Project) -> ProjectDTO:
     return ProjectDTO(
         id=project.id,
-        revenue=naira(project.revenue_kobo),
+        revenue=naira(project.revenue_kobo, project.currency),
         deposit_pct=project.deposit_pct,
-        costs=[CostDTO(c.id, c.category, naira(c.amount_kobo), "creator", c.paid_on_day) for c in creator_costs(project)],
+        costs=[CostDTO(c.id, c.category, naira(c.amount_kobo, c.currency), c.funded_by, c.paid_on_day, c.label, c.currency) for c in project.costs],
+        currency=project.currency,
     )
 
 
@@ -86,10 +88,11 @@ def snapshot(project: models.Project) -> dict:
     cash_flow = projection(project)
     gap = next((p["date"] for p in cash_flow if p["projectedBalance"] < 0), None)
     return {
-        "depositAmount": naira(deposit_kobo(project)),
+        "currency": project.currency,
+        "depositAmount": naira(deposit_kobo(project), project.currency),
         "upfrontExposure": risk["upfront_exposure"],
         "cashGap": risk["cash_gap_amount"],
-        "expectedProfit": naira(profit_kobo),
+        "expectedProfit": naira(profit_kobo, project.currency),
         "profitMarginPct": margin_bp / 100,
         "daysToCash": days_to_cash(project),
         "cashFlow": cash_flow,

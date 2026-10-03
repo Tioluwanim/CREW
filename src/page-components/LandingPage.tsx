@@ -52,21 +52,18 @@ export function LandingExperience() {
 // HERO_BEAT_RANGES the R3F scene animates against (src/lib/heroBeats.ts),
 // so the two can never drift out of lockstep.
 //
-// Post-pivot arc: a brand DMs Kemi -> the scope gets agreed -> the brand
-// asks for one more video -> was that included, or extra? -> CREW turns
-// the classification into a two-tap decision instead of an argument, and
-// the deposit already covered it. See kemiPersona/kemiChangeRequest in
-// demoPersona.ts for the numbers this pays off with in the section below.
+// One continuous project arc: agreement -> work -> change -> revision ->
+// delivery -> approval -> payment -> financial picture -> prediction.
 // ---------------------------------------------------------------------------
 
 const BEAT_TEXTS = [
-  { text: 'A brand slid into your DMs.', range: HERO_BEAT_RANGES.job },
-  { text: 'You agreed on 3 TikToks and 2 Instagram posts.', range: HERO_BEAT_RANGES.materials },
-  { text: `Then: "Can you add one more video?"`, range: HERO_BEAT_RANGES.costs },
-  { text: 'Was that included?', range: HERO_BEAT_RANGES.deliver },
-  { text: 'Or extra?', range: HERO_BEAT_RANGES.gap, big: true },
+  { text: 'Lumo Skincare agrees the creator campaign.', range: HERO_BEAT_RANGES.job },
+  { text: 'Two looks, a fitting, and launch photos are locked.', range: HERO_BEAT_RANGES.materials },
+  { text: `Then: "Can you add one more look?"`, range: HERO_BEAT_RANGES.costs },
+  { text: 'The change is recorded before anyone starts guessing.', range: HERO_BEAT_RANGES.deliver },
+  { text: 'Included in scope — or extra?', range: HERO_BEAT_RANGES.gap, big: true },
   {
-    text: 'CREW made it one tap to agree \u2014 the deposit already covered you.',
+    text: 'CREW keeps both sides aligned \u2014 until approval, payment stays held.',
     range: HERO_BEAT_RANGES.resolve,
     big: true,
     holdAtEnd: true,
@@ -321,7 +318,7 @@ export function InteractiveDemo() {
     <section className="atelier-table border-t border-ink-900/5 px-6 py-24 sm:px-8" id="demo">
       <div className="mx-auto max-w-3xl">
         <div className="mb-10 text-center">
-          <h2 className="font-display text-3xl sm:text-4xl">Try it with Kemi's deal</h2>
+          <h2 className="font-display text-3xl sm:text-4xl">Follow the creator deal</h2>
           <p className="mt-2 text-sm text-ink-500">This demo uses sample business data — no account needed.</p>
         </div>
 
@@ -687,4 +684,3 @@ function FinalCTA() {
     </section>
   );
 }
-

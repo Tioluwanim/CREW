@@ -1,4 +1,4 @@
-"""Demo data matching src/data/demoPersona.ts (Amara Studio's Aso-ebi order, ₦480,000, 40% deposit, 18 days)."""
+"""Demo data matching the social-creator landing story and frontend fixtures."""
 from datetime import timedelta
 
 from sqlalchemy import select
@@ -17,24 +17,24 @@ def seed_demo(db: Session) -> models.User:
         return u
     today = today_lagos()
     u = models.User(email=DEMO_EMAIL, password_hash=hash_password(DEMO_PASSWORD))
-    u.profile = models.CreativeProfile(business_name="Amara Studio", craft="Fashion Designer", location="Lagos, Nigeria", owner_name="Amara",
+    u.profile = models.CreativeProfile(business_name="Kemi Ade", craft="Content Creator", location="Lagos, Nigeria", owner_name="Kemi",
                                        typical_deposit_pct=56, starting_cash_kobo=324_500 * 100)
     db.add(u)
     db.flush()
-    teni = models.Client(owner_id=u.id, name="Teni", email="teni@example.com")
+    teni = models.Client(owner_id=u.id, name="Lumo Skincare", email="hello@lumo.example")
     bisi = models.Client(owner_id=u.id, name="Bisi", email="bisi@example.com")
     db.add_all([teni, bisi])
     db.flush()
 
     # Active project - the running demo
-    p = models.Project(id="project-asoebi", owner_id=u.id, client_id=teni.id, name="Aso-ebi order", craft="Fashion Designer",
+    p = models.Project(id="project-asoebi", owner_id=u.id, client_id=teni.id, name="Lumo Skincare deal", craft="Content Creator",
                        revenue_kobo=480_000 * 100, deposit_pct=40, expected_payment_days=18, stage="brief", start_date=today)
     db.add(p)
     db.flush()
     for cid, label, cat, amt in [("cost-materials", "Materials", "materials", 210_000), ("cost-labour", "Labour", "labour", 80_000),
                                  ("cost-transport", "Transport", "transport", 20_000), ("cost-other", "Other costs", "other", 15_000)]:
         db.add(models.Cost(id=cid, project_id=p.id, label=label, category=cat, amount_kobo=amt * 100, funded_by="creator", paid_on_day=0))
-    d1 = models.Deliverable(project_id=p.id, title="10 Aso-ebi outfits (fitted)", position=0, due_date=today + timedelta(days=14))
+    d1 = models.Deliverable(project_id=p.id, title="Three TikTok videos and two Instagram posts", position=0, due_date=today + timedelta(days=10))
     db.add(d1)
     db.flush()
     db.add_all([models.Milestone(project_id=p.id, title="Deposit", amount_kobo=192_000 * 100, position=0),

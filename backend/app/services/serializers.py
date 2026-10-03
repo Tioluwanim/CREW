@@ -5,7 +5,7 @@ from app.services.finance import naira
 
 
 def cost_out(c: models.Cost) -> dict:
-    return {"id": c.id, "label": c.label, "category": c.category, "amount": naira(c.amount_kobo), "estimatedAmount": naira(c.estimated_amount_kobo) if c.estimated_amount_kobo is not None else None, "fundedBy": c.funded_by, "paidOnDay": c.paid_on_day}
+    return {"id": c.id, "label": c.label, "category": c.category, "amount": naira(c.amount_kobo, c.currency), "currency": c.currency, "estimatedAmount": naira(c.estimated_amount_kobo, c.currency) if c.estimated_amount_kobo is not None else None, "fundedBy": c.funded_by, "paidOnDay": c.paid_on_day}
 
 
 def deliverable_out(d: models.Deliverable) -> dict:
@@ -14,7 +14,7 @@ def deliverable_out(d: models.Deliverable) -> dict:
 
 
 def milestone_out(m: models.Milestone) -> dict:
-    return {"id": m.id, "title": m.title, "amount": naira(m.amount_kobo), "funded": naira(m.funded_kobo), "status": m.status, "deliverableId": m.deliverable_id}
+    return {"id": m.id, "title": m.title, "amount": naira(m.amount_kobo, m.currency), "currency": m.currency, "funded": naira(m.funded_kobo, m.currency), "status": m.status, "deliverableId": m.deliverable_id}
 
 
 def change_out(c: models.ChangeRequest) -> dict:
@@ -31,7 +31,7 @@ def event_out(e: models.ActivityEvent, full: bool = False) -> dict:
 def project_out(p: models.Project) -> dict:
     return {
         "id": p.id, "name": p.name, "clientId": p.client_id, "clientName": p.client.name, "craft": p.craft,
-        "revenue": naira(p.revenue_kobo), "depositPct": p.deposit_pct, "costs": [cost_out(c) for c in p.costs],
+        "revenue": naira(p.revenue_kobo, p.currency), "currency": p.currency, "depositPct": p.deposit_pct, "costs": [cost_out(c) for c in p.costs],
         "expectedPaymentDays": p.expected_payment_days, "status": finance.public_status(p), "createdAt": p.created_at.isoformat(),
         "activity": [event_out(e) for e in reversed(p.events)],
         "stage": p.stage, "startDate": p.start_date.isoformat(), "revisionsIncluded": p.revisions_included,
@@ -44,20 +44,20 @@ def invoice_out(i: models.Invoice, token: str | None) -> dict:
     p = i.project
     dep = finance.deposit_kobo(p)
     link = f"{get_settings().public_app_url}/pay/{token}?invoice={i.id}" if token else ""
-    return {"id": i.id, "projectId": i.project_id, "clientName": p.client.name, "amount": naira(i.amount_kobo), "depositPct": p.deposit_pct,
-            "depositAmount": naira(dep), "balance": naira(p.revenue_kobo - dep), "dueDate": i.due_date.isoformat(),
+    return {"id": i.id, "projectId": i.project_id, "clientName": p.client.name, "amount": naira(i.amount_kobo, i.currency), "currency": i.currency, "depositPct": p.deposit_pct,
+            "depositAmount": naira(dep, p.currency), "balance": naira(p.revenue_kobo - dep, p.currency), "dueDate": i.due_date.isoformat(),
             "status": i.status, "kind": i.kind, "paymentLink": link}
 
 
 def payment_out(p: models.Payment) -> dict:
-    return {"id": p.id, "invoiceId": p.invoice_id, "projectId": p.project_id, "reference": p.reference, "amount": naira(p.amount_kobo),
+    return {"id": p.id, "invoiceId": p.invoice_id, "projectId": p.project_id, "reference": p.reference, "amount": naira(p.amount_kobo, p.currency), "currency": p.currency,
             "status": p.status, "method": p.method, "provider": p.provider, "createdAt": p.created_at.isoformat(),
             "verifiedAt": p.verified_at.isoformat() if p.verified_at else None}
 
 
 def verification_out(p: models.Payment) -> dict:
     out = {"paymentReference": p.reference, "status": "pending" if p.status == "unverified" else p.status,
-           "amount": naira(p.amount_kobo), "currency": "NGN"}
+           "amount": naira(p.amount_kobo), "currency": p.currency}
     if p.verified_at:
         out["verifiedAt"] = p.verified_at.isoformat()
     return out

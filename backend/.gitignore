@@ -42,3 +42,4 @@ Thumbs.db
 crew.db
 *.db
 openapi.generated.json
+artifacts/
