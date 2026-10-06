@@ -147,10 +147,32 @@ def test_intelligence_genome_copilot_and_data_pipeline(client, auth):
     client.post("/api/payments/verify", headers=auth, json={"paymentReference": "SBX-DATA1", "invoiceId": client.post(f"/api/projects/{P}/invoices", headers=auth, json={"kind": "deposit"}).json()["id"], "amount": 192_000})
     rows = client.get("/api/data/normalized", headers=auth).json()
     assert rows and rows[-1]["direction"] == "inflow" and rows[-1]["amountKobo"] == 192_000 * 100
-    assert client.get("/api/system/extensions", headers=auth).json()["forecaster"] == "baseline-deterministic"
+    assert client.get("/api/system/extensions", headers=auth).json()["forecaster"] == "learned-payment-timing"
     assert client.get("/api/forecast/series", headers=auth).json()["learned"] is False
 
 
 def test_milestones_must_sum_to_price(client, auth):
     body = {"name": "X", "clientName": "Y", "revenue": 100_000, "milestones": [{"title": "a", "amount": 10_000}]}
     assert client.post("/api/projects", headers=auth, json=body).status_code == 422
+
+
+def test_forecast_series_has_timing_bands_and_is_honest_about_what_is_learned(client, auth):
+    out = client.get("/api/forecast/series", headers=auth).json()
+    assert out["model"] == "learned-payment-timing"
+    assert out["learned"] is False                      # no trained GRU in the demo workspace
+    assert out["delay"]["source"] in ("history", "prior")
+    assert out["bandMethod"] == "timing-scenarios"
+    assert out["delay"]["optimisticDays"] == 0
+    assert out["delay"]["pessimisticDays"] >= out["delay"]["expectedDays"] + 5
+    for pt in out["points"]:
+        assert pt["low"] <= pt["projectedBalance"] <= pt["high"]
+    # Money is untouched: the on-time path is the deterministic /forecast.
+    base = client.get("/api/forecast", headers=auth).json()["points"]
+    assert [pt["high"] for pt in out["points"]][0] == base[0]["projectedBalance"]
+    assert len(out["points"]) == len(base)
+
+
+def test_late_balance_lowers_the_pessimistic_band(client, auth):
+    out = client.get("/api/forecast/series", headers=auth).json()
+    last = out["points"][-1]
+    assert last["low"] <= last["high"]

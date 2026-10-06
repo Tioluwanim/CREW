@@ -10,6 +10,7 @@ import { calculateDepositImpact, calculateExpectedProfit, recommendMinimumSafeDe
 import { isLiveBackend } from '../lib/demoMode';
 import { newIdempotencyKey } from '../lib/apiClient';
 import { createProject } from '../services/projects';
+import { loadLiveWorkspace } from '../services/workspace';
 import type { ProjectCost } from '../types';
 
 const STEPS = ['Details', 'Client', 'Price', 'Deposit', 'Costs', 'Review'] as const;
@@ -37,6 +38,7 @@ export function CreateProjectPage() {
   const [stepIndex, setStepIndex] = useState(0);
   const [draft, setDraft] = useState<Draft>(initialDraft);
   const [created, setCreated] = useState(false);
+  const [createdId, setCreatedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // One key per form session: a double-click or retry replays the first response instead of creating twice.
@@ -73,7 +75,7 @@ export function CreateProjectPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await createProject(
+      const project = await createProject(
         {
           name: draft.name.trim(),
           clientName: draft.clientName.trim(),
@@ -83,6 +85,9 @@ export function CreateProjectPage() {
         },
         idempotencyKey,
       );
+      setCreatedId(project.id);
+      // Pull the new project into the app. If that refresh fails the project still exists; the next page load shows it.
+      await loadLiveWorkspace().catch(() => undefined);
       setCreated(true);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Could not create the project');
@@ -106,12 +111,16 @@ export function CreateProjectPage() {
       <div className="mx-auto max-w-md py-16 text-center">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="font-display text-2xl text-ink-900">"{draft.name}" is set up.</h1>
-          <p className="mt-2 text-sm text-ink-500">
-            This demo keeps Kemi's Lumo Skincare deal as the one editable project — your new project's numbers were calculated
-            using the same math, but won't persist as a separate workspace entry here.
-          </p>
-          <Button className="mt-6" onClick={() => router.push('/app/projects')}>
-            Back to projects
+          {createdId ? (
+            <p className="mt-2 text-sm text-ink-500">Saved to your workspace. Your deposit, cash gap and profit are calculated from the numbers you entered.</p>
+          ) : (
+            <p className="mt-2 text-sm text-ink-500">
+              This demo keeps Kemi's Lumo Skincare deal as the one editable project — your new project's numbers were calculated
+              using the same math, but won't persist as a separate workspace entry here.
+            </p>
+          )}
+          <Button className="mt-6" onClick={() => router.push(createdId ? `/app/projects/${createdId}` : '/app/projects')}>
+            {createdId ? 'Open project' : 'Back to projects'}
           </Button>
         </motion.div>
       </div>

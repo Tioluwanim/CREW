@@ -1,4 +1,5 @@
 import { exitDemoSession } from './demoMode';
+import { notifySession } from './sessionEvents';
 
 // Access-token storage for the live backend. Browser storage can be blocked or
 // absent (private windows, SSR, tests), so every access is guarded and the app
@@ -21,6 +22,7 @@ export function setAccessToken(token: string): void {
   } catch {
     // Storage unavailable: the token lives only for this page load's requests via the caller.
   }
+  notifySession();
 }
 
 export function clearAccessToken(): void {
@@ -29,4 +31,5 @@ export function clearAccessToken(): void {
   } catch {
     // nothing to clear
   }
+  notifySession();
 }

@@ -4,7 +4,7 @@ import { createContext, useContext, useCallback, useEffect, useMemo, useState, t
 import { useProjectStore } from '../../store/projectStore';
 import { getCopilotInsight, type CopilotRoute } from '../../services/copilot';
 import { answerCopilotQuestion, formatDaysToCashLabel, type CopilotChatContext } from '../../services/copilotChat';
-import { kemiProfile } from '../../data/demoData';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import { isLiveBackend } from '../../lib/demoMode';
 import { askBackendCopilot } from '../../services/copilotBackend';
 import { resolveBackendProjectId } from '../../services/projectWorkspace';
@@ -37,6 +37,7 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
   const [route, setRoute] = useState<CopilotRoute>('dashboard');
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const project = useProjectStore((s) => s.project);
+  const kemiProfile = useWorkspaceStore((s) => s.profile);
   const paymentStatus = useProjectStore((s) => s.paymentStatus);
   const invoiceApproved = useProjectStore((s) => s.invoiceApproved);
   const derived = useProjectStore((s) => s.derived);
@@ -66,7 +67,7 @@ export function CopilotProvider({ children }: { children: ReactNode }) {
       averageMaterialOverrunPct: kemiProfile.averageMaterialOverrunPct,
       typicalDepositPct: kemiProfile.typicalDepositPct,
     };
-  }, [derived, project, paymentStatus]);
+  }, [derived, project, paymentStatus, kemiProfile]);
 
   const seedFromInsight = useCallback(() => {
     setMessages((prev) => {

@@ -2,9 +2,10 @@ import { Card, StatLabel } from '../components/ui/primitives';
 import { GenomeOverview } from '../features/genome';
 import { VerifiedBadgeRow } from '../features/badges/VerifiedBadgeRow';
 import { formatNaira } from '../lib/money';
-import { kemiProfile } from '../data/demoData';
+import { useWorkspaceStore } from '../store/workspaceStore';
+import type { CreativeProfile } from '../types';
 
-const GENOME_METRICS = [
+const genomeMetrics = (kemiProfile: CreativeProfile) => [
   { label: 'Typical deposit', value: `${kemiProfile.typicalDepositPct}%` },
   { label: 'Average payment delay', value: `${kemiProfile.averagePaymentDelayDays} days` },
   { label: 'Average material overrun', value: `${kemiProfile.averageMaterialOverrunPct}%` },
@@ -12,6 +13,8 @@ const GENOME_METRICS = [
 ];
 
 export function ProfilePage() {
+  const kemiProfile = useWorkspaceStore((s) => s.profile);
+  const GENOME_METRICS = genomeMetrics(kemiProfile);
   return (
     <div>
       <header className="mb-6">

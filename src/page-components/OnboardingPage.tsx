@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '../components/ui/primitives';
@@ -14,6 +14,8 @@ import {
   type OnboardingAnswers,
 } from '../features/onboarding/types';
 import { getStarterTemplate } from '../features/onboarding/starterTemplates';
+import { useAccess } from '../lib/session';
+import { patchProfile } from '../services/profile';
 
 const TOTAL_STEPS = 5;
 
@@ -21,15 +23,44 @@ export function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [answers, setAnswers] = useState<OnboardingAnswers>(initialAnswers);
   const [done, setDone] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const router = useRouter();
+  const access = useAccess();
+
+  // With a backend, onboarding belongs to an account: sign up first.
+  useEffect(() => {
+    if (access === 'anon') router.replace('/signup');
+  }, [access, router]);
 
   function update<K extends keyof OnboardingAnswers>(key: K, value: OnboardingAnswers[K]) {
     setAnswers((prev) => ({ ...prev, [key]: value }));
   }
 
-  function next() {
-    if (step < TOTAL_STEPS) setStep(step + 1);
-    else setDone(true);
+  async function next() {
+    if (step < TOTAL_STEPS) {
+      setStep(step + 1);
+      return;
+    }
+    if (access !== 'authed') {
+      setDone(true); // demo / mock: nothing to save
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const deposit = answers.typicalDeposit === 'custom' ? Number(answers.customDeposit) : answers.typicalDeposit;
+      await patchProfile({
+        craft: answers.craft ?? undefined,
+        typicalDepositPct: deposit === null ? undefined : Math.min(100, Math.max(0, Math.round(deposit))),
+        startingCash: Math.max(0, Math.round(Number(answers.startingCash) || 0)),
+      });
+      setDone(true);
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Could not save your answers');
+    } finally {
+      setSaving(false);
+    }
   }
 
   function back() {
@@ -174,12 +205,18 @@ export function OnboardingPage() {
         </motion.div>
       </div>
 
+      {saveError && (
+        <p role="alert" className="mx-auto w-full max-w-md pt-4 text-sm text-thread-600">
+          {saveError}
+        </p>
+      )}
+
       <div className="mx-auto flex w-full max-w-md justify-between pt-6">
-        <Button variant="ghost" onClick={back} disabled={step === 1}>
+        <Button variant="ghost" onClick={back} disabled={step === 1 || saving}>
           Back
         </Button>
-        <Button onClick={next} disabled={!canContinue}>
-          {step === TOTAL_STEPS ? 'Finish' : 'Continue'}
+        <Button onClick={next} disabled={!canContinue || saving}>
+          {step === TOTAL_STEPS ? (saving ? 'Saving…' : 'Finish') : 'Continue'}
         </Button>
       </div>
     </div>

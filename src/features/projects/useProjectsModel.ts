@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { otherProjects } from '../../data/demoData';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import { calculateExpectedProfit, calculateProfitMargin } from '../../lib/finance';
 import { useProjectStore } from '../../store/projectStore';
 import type { Project, ProjectStatus } from '../../types';
@@ -18,6 +18,7 @@ const STATUS_LABEL: Record<ProjectStatus, string> = {
 export function useProjectsModel() {
   const [filter, setFilter] = useState<ProjectFilter>('All');
   const heroProject = useProjectStore((state) => state.project);
+  const otherProjects = useWorkspaceStore((state) => state.otherProjects);
   const heroPaymentStatus = useProjectStore((state) => state.paymentStatus);
   const heroDerived = useProjectStore((state) => state.derived)();
   const heroStatus: ProjectStatus = heroPaymentStatus === 'verified' ? 'completed' : 'active';

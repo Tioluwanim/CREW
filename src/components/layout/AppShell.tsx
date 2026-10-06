@@ -8,6 +8,8 @@ import { CopilotSurface } from '../../features/copilot';
 import { CopilotProvider } from '../copilot/CopilotContext';
 import { NotificationsMenu, AccountMenu } from './HeaderMenus';
 import { cn } from '../../lib/cn';
+import { useWorkspaceStore } from '../../store/workspaceStore';
+import { EmptyWorkspace } from './EmptyWorkspace';
 
 const navItems = [
   { to: '/app', label: 'Home', icon: LayoutDashboard, end: true },
@@ -27,8 +29,13 @@ const desktopSecondaryItems = [
   { to: '/app/settings', label: 'Settings', icon: Settings, end: false },
 ];
 
+// A live account with no projects yet can still reach these; every other screen needs a project to show.
+const WORKS_WITHOUT_PROJECTS = ['/app/projects/new', '/app/settings', '/app/profile', '/app/opportunities', '/app/consent'];
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const hasProjects = useWorkspaceStore((s) => s.hasProjects);
+  const showEmpty = !hasProjects && !WORKS_WITHOUT_PROJECTS.some((p) => pathname.startsWith(p));
   const linkClass = (to: string, end = false) =>
     cn(
       'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-900/5',
@@ -104,7 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.18, ease: 'easeOut' }}
-              >{children}</motion.div>
+              >{showEmpty ? <EmptyWorkspace /> : children}</motion.div>
             </AnimatePresence>
           </main>
         </div>
@@ -126,7 +133,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <CopilotSurface />
+        {!showEmpty && <CopilotSurface />}
       </div>
     </CopilotProvider>
   );

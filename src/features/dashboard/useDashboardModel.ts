@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { kemiProfile, otherProjects } from '../../data/demoData';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import { useProjectStore } from '../../store/projectStore';
 import { calculateDepositAmount } from '../../lib/finance';
 import { formatNaira } from '../../lib/money';
@@ -9,6 +9,7 @@ import type { AttentionItem, DashboardModel } from './dashboard.types';
 
 export function useDashboardModel(): DashboardModel {
   const project = useProjectStore((state) => state.project);
+  const otherProjects = useWorkspaceStore((state) => state.otherProjects);
   const paymentStatus = useProjectStore((state) => state.paymentStatus);
   const derived = useProjectStore((state) => state.derived)();
   const [showAllAttention, setShowAllAttention] = useState(false);
@@ -81,6 +82,7 @@ export function useDashboardModel(): DashboardModel {
 }
 
 export function useDashboardGreeting() {
+  const kemiProfile = useWorkspaceStore((state) => state.profile);
   return {
     ownerName: kemiProfile.ownerName,
     businessName: kemiProfile.businessName,

@@ -2,16 +2,10 @@ from datetime import timedelta
 from typing import Any
 
 from app.config import get_settings
+from app.extension.groq_agent import GroqAgent
 from app.extension.interfaces import AgentRuntime, CashflowForecaster
-
-
-class BaselineForecaster:
-    """Deterministic: replays the engine's known inflows/outflows. Not a learned model."""
-    name = "baseline-deterministic"
-
-    def forecast(self, history: list[dict[str, Any]], horizon_days: int, context: dict[str, Any]) -> dict[str, Any]:
-        points = context.get("points", [])
-        return {"model": self.name, "learned": False, "horizonDays": horizon_days, "points": points, "historyRows": len(history)}
+from app.extension.learned_forecaster import LearnedForecaster
+from app.extension.registry_baseline import BaselineForecaster
 
 
 class NullAgent:
@@ -40,8 +34,9 @@ class NullAgent:
         return {"status": "not_implemented", "agent": self.name}
 
 
-_forecasters: dict[str, CashflowForecaster] = {"baseline": BaselineForecaster()}
-_agents: dict[str, AgentRuntime] = {"null": NullAgent()}
+_null_agent = NullAgent()
+_forecasters: dict[str, CashflowForecaster] = {"baseline": BaselineForecaster(), "learned": LearnedForecaster()}
+_agents: dict[str, AgentRuntime] = {"null": _null_agent, "groq": GroqAgent(_null_agent)}
 
 
 def register_forecaster(key: str, impl: CashflowForecaster) -> None:

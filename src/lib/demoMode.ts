@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { USE_MOCK_API } from './apiConfig';
+import { notifySession } from './sessionEvents';
 
 // "Explore demo" must always run on the built-in demo data, even when the app is
 // pointed at a live backend. The /demo route starts a demo session (a flag in
@@ -14,6 +15,7 @@ export function enterDemoSession(): void {
   } catch {
     // Storage blocked: the demo still works in mock mode, and in live mode falls back to live data.
   }
+  notifySession();
 }
 
 export function exitDemoSession(): void {
@@ -22,6 +24,7 @@ export function exitDemoSession(): void {
   } catch {
     // nothing to clear
   }
+  notifySession();
 }
 
 export function isDemoSession(): boolean {

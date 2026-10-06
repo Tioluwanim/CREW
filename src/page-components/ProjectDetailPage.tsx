@@ -12,7 +12,7 @@ import { EmptyState } from '../components/ui/states';
 import { DepositSlider } from '../components/forms/DepositSlider';
 import { CashFlowChart } from '../components/charts/CashFlowChart';
 import { formatNaira } from '../lib/money';
-import { otherProjects } from '../data/demoData';
+import { useWorkspaceStore } from '../store/workspaceStore';
 import {
   recommendMinimumSafeDeposit,
   calculateDepositImpact,
@@ -23,6 +23,7 @@ import {
 import type { ChangeRequest, Milestone, MilestoneStatus, Project, PaymentStatus } from '../types';
 import { useLiveBackend } from '../lib/demoMode';
 import { BackendWorkspacePanel } from '../features/projects/BackendWorkspacePanel';
+import { VirtualAccountCard } from '../features/payments/VirtualAccountCard';
 
 const TABS = ['Overview', 'Scope', 'Changes', 'Payments', 'Costs & Profit', 'Timeline'] as const;
 type Tab = (typeof TABS)[number];
@@ -55,13 +56,15 @@ export function ProjectDetailPage() {
   const advanceMilestone = useProjectStore((s) => s.advanceMilestone);
   const heroDerived = useProjectStore((s) => s.derived)();
 
+  const otherProjects = useWorkspaceStore((s) => s.otherProjects);
+  const liveData = useWorkspaceStore((s) => s.source === 'live');
   const isHero = !id || id === heroProject.id;
   const staticProject = isHero ? null : otherProjects.find((p) => p.id === id);
 
   if (!isHero && !staticProject) {
     return (
       <div>
-        <EmptyState message="This project doesn't exist in the demo dataset." />
+        <EmptyState message={liveData ? "We couldn't find that project." : "This project doesn't exist in the demo dataset."} />
         <div className="mt-4 text-center">
           <Link href="/app/projects" className="text-sm font-medium text-ink-700 underline underline-offset-4">
             Back to projects
@@ -94,7 +97,7 @@ export function ProjectDetailPage() {
 
   return (
     <div>
-      {liveBackend && <div className="mb-6"><BackendWorkspacePanel projectId={project.id} projectName={project.name} /></div>}
+      {liveBackend && <div className="mb-6 space-y-6"><BackendWorkspacePanel projectId={project.id} projectName={project.name} /><VirtualAccountCard projectId={project.id} /></div>}
       <header className="mb-6">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="font-display text-3xl text-ink-900">{project.name}</h1>

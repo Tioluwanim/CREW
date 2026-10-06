@@ -28,7 +28,7 @@ def cash_position_kobo(db: Session, user: models.User) -> int:
     return cash
 
 
-def _future_events(p: models.Project, today):
+def _future_events(p: models.Project, today, balance_delay_days: int = 0):
     ev = []
     dep = finance.deposit_kobo(p)
     received = finance.received_kobo(p)
@@ -37,7 +37,7 @@ def _future_events(p: models.Project, today):
     if dep_left:
         ev.append((max(p.start_date, today), dep_left))
     if bal_left:
-        ev.append((max(p.start_date + timedelta(days=p.expected_payment_days), today), bal_left))
+        ev.append((max(p.start_date + timedelta(days=p.expected_payment_days + balance_delay_days), today), bal_left))
     for c in finance.creator_costs(p):
         d = p.start_date + timedelta(days=c.paid_on_day)
         if d > today:
@@ -45,10 +45,11 @@ def _future_events(p: models.Project, today):
     return ev
 
 
-def forecast_points(db: Session, user: models.User) -> list[dict]:
+def forecast_points(db: Session, user: models.User, balance_delay_days: int = 0) -> list[dict]:
+    """Cash checkpoints. `balance_delay_days` > 0 assumes clients pay the final balance that many days late."""
     today = today_lagos()
     opening = cash_position_kobo(db, user)
-    events = [e for p in user_projects(db, user.id) if p.stage in OPEN_STAGES for e in _future_events(p, today)]
+    events = [e for p in user_projects(db, user.id) if p.stage in OPEN_STAGES for e in _future_events(p, today, balance_delay_days)]
     pts = []
     for off in CHECKPOINTS:
         end = today + timedelta(days=off)

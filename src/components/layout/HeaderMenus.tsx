@@ -2,12 +2,15 @@
 
 import { useCallback, useId, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { Bell, Check, CircleDollarSign, FileClock, TrendingDown, FolderPlus, MessageCircleQuestion, UserCircle, Settings, LogOut } from 'lucide-react';
 import { useDismissableMenu } from '../../hooks/useDismissableMenu';
 import { MenuPanel } from '../ui/menu';
-import { kemiProfile } from '../../data/demoData';
+import { useWorkspaceStore } from '../../store/workspaceStore';
+import { logout } from '../../services/auth';
+import { useAccess } from '../../lib/session';
 import { demoNotifications as initialNotifications } from '../../data/notifications';
 import type { AppNotification, NotificationKind } from '../../types';
 import { cn } from '../../lib/cn';
@@ -129,7 +132,10 @@ export function AccountMenu() {
   const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []);
   const ref = useDismissableMenu(open, close);
-  const initial = kemiProfile.ownerName.charAt(0).toUpperCase();
+  const kemiProfile = useWorkspaceStore((s) => s.profile);
+  const access = useAccess();
+  const router = useRouter();
+  const initial = (kemiProfile.ownerName || kemiProfile.businessName || '?').charAt(0).toUpperCase();
   const menuId = useId();
 
   const links = [
@@ -174,7 +180,14 @@ export function AccountMenu() {
             <div className="border-t border-ink-900/10 py-1">
               <Link
                 href="/"
-                onClick={close}
+                onClick={() => {
+                  close();
+                  // Signed in: end the session. Demo / mock: just leave the app.
+                  if (access === 'authed') {
+                    logout();
+                    router.push('/');
+                  }
+                }}
                 className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-thread-600 hover:bg-thread-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-thread-600"
               >
                 <LogOut size={16} strokeWidth={2} />

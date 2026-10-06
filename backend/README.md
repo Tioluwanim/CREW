@@ -27,6 +27,23 @@ requests with **no** header act as the demo user (a wrong token is still 401). P
 `/auth/*` and `/health` needs `Authorization: Bearer <token>` (from `POST /api/auth/demo` with
 `CREW_DEMO_MODE=true`, or `/api/auth/login`). Add it in `src/services/*`.
 
+## Agent (Groq) and forecast
+
+**Copilot agent.** Set `GROQ_API_KEY` (free key at https://console.groq.com/keys) and the copilot (`POST /api/copilot/chat`) is answered by a Groq-hosted model
+(`GROQ_MODEL`, default `llama-3.3-70b-versatile`). `AGENT_RUNTIME=null` forces the deterministic template answers.
+- The model never does the math: it is given the engine's figures and may only restate them. Any naira amount in its reply that is not in those figures
+  discards the reply and the deterministic answer is used (`fallbackReason: "ungrounded_amount"`).
+- Only engine figures are sent to Groq: no names, emails, phone numbers or ids.
+- No key, a timeout, a rate limit (429) or malformed output all fall back to the deterministic answer. The response's `agent` field says which one answered.
+- It only answers. It has no tools and cannot change a project.
+
+**Forecast.** `FORECASTER=learned` (default) makes `GET /api/forecast/series` return the cash curve with `low`/`high` bands from payment-timing scenarios
+(clients pay on time / `expectedDays` late / later still). `delay.source` says where the expected delay came from: `gru` (a trained model that beat its baseline),
+`history` (your completed projects, shrunk toward a craft prior) or `prior`. `learned` is `true` only for `gru`. Amounts always come from the deterministic engine.
+Train the GRU with `POST /api/dl/train` once there are enough completed projects (the existing data-quality gate still applies). The GRU code now masks padding,
+scales its inputs and keeps the best epoch on the later validation slice; a model that does not beat "always predict the average delay" is never used.
+`FORECASTER=baseline` returns the plain deterministic curve.
+
 ## Layout
 
 ```

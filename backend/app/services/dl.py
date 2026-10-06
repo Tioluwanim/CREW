@@ -9,6 +9,9 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.config import get_settings
+from app.services import intelligence_service, portfolio
+from intelligence.priors import PriorResolver
+from intelligence.stats import bayesian_shrinkage
 from intelligence.dl import (
     assert_no_feature_leakage,
     build_payment_delay_examples,
@@ -70,6 +73,8 @@ def train(db: Session, owner_id: str, epochs: int, seed: int) -> dict:
         "rmseDays": metrics["validationRmse"],
         "r2": metrics["validationR2"],
         "baselineMaeDays": metrics["baselineMae"],
+        "beatsBaseline": metrics["beatsBaseline"],
+        "bestEpoch": metrics["bestEpoch"],
     }
     run.artifact_reference = str(artifact)
     db.commit()
@@ -123,3 +128,46 @@ def predict(db: Session, owner_id: str, project: models.Project) -> dict:
         "trainingSampleCount": run.training_sample_count, "predictionCutoff": example.cutoff.isoformat(),
         "currency": project.currency, "status": prediction.status, "provenance": prediction.provenance,
     }
+
+
+def _latest_trusted_run(db: Session, owner_id: str) -> models.ModelRun | None:
+    run = db.scalars(
+        select(models.ModelRun).where(models.ModelRun.owner_id == owner_id).order_by(models.ModelRun.created_at.desc())
+    ).first()
+    # Only a model that beat "always predict the average delay" on later data is allowed to move a forecast.
+    if run and run.artifact_reference and (run.validation_metrics or {}).get("beatsBaseline") is True:
+        return run
+    return None
+
+
+def estimate_payment_delay(db: Session, user: models.User) -> dict:
+    """How many days past the agreed date this creator's clients are expected to pay the final balance.
+
+    Order of evidence (the `source` says which one was used, so the UI never overstates it):
+      gru      a trained payment-delay GRU that beat the baseline, averaged over open projects with payment history
+      history  the creator's own completed projects, shrunk toward the craft/industry prior
+      prior    no history yet: the craft/industry/platform prior
+    `learned` is True only for the GRU.
+    """
+    run = _latest_trusted_run(db, user.id)
+    if run is not None:
+        predictions: list[float] = []
+        for project in portfolio.user_projects(db, user.id):
+            if project.stage not in portfolio.OPEN_STAGES:
+                continue
+            example = next((e for e in build_payment_delay_examples([project]) if e.project_id == project.id), None)
+            if example is None:
+                continue
+            try:
+                predictions.append(predict_payment_delay(run.artifact_reference, example))
+            except (RuntimeError, OSError, KeyError):  # torch missing or artifact unreadable: use the statistical estimate
+                predictions = []
+                break
+        if predictions:
+            return {"days": round(sum(predictions) / len(predictions), 1), "source": "gru", "learned": True,
+                    "modelVersion": run.model_version, "projects": len(predictions)}
+    _, delays, _ = intelligence_service._history(db, user.id)
+    craft = (user.profile.craft if user.profile else "") or ""
+    prior = PriorResolver.get_creator_baseline_delay(delays, craft)
+    days = bayesian_shrinkage(delays, prior)
+    return {"days": round(days, 1), "source": "history" if delays else "prior", "learned": False, "observations": len(delays)}

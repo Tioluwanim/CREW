@@ -109,6 +109,10 @@ def assert_no_feature_leakage(examples: list[PaymentDelayExample]) -> None:
             raise AssertionError("feature event occurs after prediction cutoff")
 
 
+FEATURE_SCALE = (60.0, 1.0)  # (days since project start, share of the price paid): keeps both inputs near 0..1
+HIDDEN_SIZE = 16
+
+
 def _model_class() -> Any:
     """Train the advisory GRU when PyTorch is installed in the selected environment."""
     try:
@@ -120,26 +124,48 @@ def _model_class() -> Any:
     class PaymentDelayGRU(nn.Module):
         def __init__(self) -> None:
             super().__init__()
-            self.gru = nn.GRU(input_size=2, hidden_size=16, batch_first=True)
-            self.head = nn.Linear(16, 1)
+            self.gru = nn.GRU(input_size=2, hidden_size=HIDDEN_SIZE, batch_first=True)
+            self.head = nn.Linear(HIDDEN_SIZE, 1)
 
-        def forward(self, values: Any) -> Any:
-            _, hidden = self.gru(values)
+        def forward(self, values: Any, lengths: Any) -> Any:
+            # Pack so the zero padding after a short sequence never reaches the hidden state
+            # (reading hidden[-1] of a padded batch mixes padding into every short example).
+            packed = nn.utils.rnn.pack_padded_sequence(values, lengths.cpu(), batch_first=True, enforce_sorted=False)
+            _, hidden = self.gru(packed)
             return self.head(hidden[-1]).squeeze(-1)
 
     return PaymentDelayGRU
 
 
-def _tensors(examples: list[PaymentDelayExample]) -> tuple[Any, Any]:
+def _tensors(examples: list[PaymentDelayExample]) -> tuple[Any, Any, Any]:
     import torch
 
     width = max((len(example.sequence) for example in examples), default=1)
     values = torch.zeros((len(examples), width, 2), dtype=torch.float32)
     targets = torch.zeros((len(examples),), dtype=torch.float32)
+    lengths = torch.ones((len(examples),), dtype=torch.long)
+    scale = torch.tensor(FEATURE_SCALE, dtype=torch.float32)
     for index, example in enumerate(examples):
-        values[index, : len(example.sequence)] = torch.tensor(example.sequence, dtype=torch.float32)
+        seq = torch.tensor(example.sequence, dtype=torch.float32) / scale
+        values[index, : len(example.sequence)] = seq
+        lengths[index] = max(1, len(example.sequence))
         targets[index] = example.target_delay_days
-    return values, targets
+    return values, targets, lengths
+
+
+def _metrics(model: Any, examples: list[PaymentDelayExample], train_mean: float) -> dict[str, Any]:
+    import torch
+
+    values, targets, lengths = _tensors(examples)
+    with torch.no_grad():
+        predictions = model(values, lengths)
+        errors = predictions - targets
+        mae = torch.mean(torch.abs(errors)).item()
+        rmse = torch.sqrt(torch.mean(errors.square())).item()
+        baseline_mae = torch.mean(torch.abs(torch.full_like(targets, train_mean) - targets)).item()
+        r2_denominator = torch.sum((targets - torch.mean(targets)) ** 2).item()
+        r2 = None if r2_denominator == 0 else 1 - torch.sum(errors.square()).item() / r2_denominator
+    return {"mae": mae, "rmse": rmse, "baselineMae": baseline_mae, "r2": r2}
 
 
 def train_payment_delay_model(
@@ -159,34 +185,39 @@ def train_payment_delay_model(
         raise ValueError("A non-empty temporal validation set is required")
     torch.manual_seed(seed)
     model = _model_class()()
-    values, targets = _tensors(train_examples)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    loss_fn = torch.nn.MSELoss()
-    model.train()
-    for _ in range(epochs):
-        optimizer.zero_grad()
-        loss = loss_fn(model(values), targets)
-        loss.backward()
-        optimizer.step()
-    model.eval()
+    values, targets, lengths = _tensors(train_examples)
+    train_mean = float(torch.mean(targets).item())
     with torch.no_grad():
-        validation_values, validation_targets = _tensors(validation_examples)
-        predictions = model(validation_values)
-        errors = predictions - validation_targets
-        mae = torch.mean(torch.abs(errors)).item()
-        rmse = torch.sqrt(torch.mean(errors.square())).item()
-        baseline = torch.full_like(validation_targets, torch.mean(targets))
-        baseline_mae = torch.mean(torch.abs(baseline - validation_targets)).item()
-        r2_denominator = torch.sum((validation_targets - torch.mean(validation_targets)) ** 2).item()
-        r2 = None if r2_denominator == 0 else 1 - torch.sum(errors.square()).item() / r2_denominator
-    torch.save({"state_dict": model.state_dict(), "architecture": "gru", "input_size": 2, "hidden_size": 16}, artifact_path)
+        model.head.bias.fill_(train_mean)  # start from "predict the average delay" so a few epochs refine it
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    loss_fn = torch.nn.HuberLoss(delta=7.0)  # late payments are heavy-tailed; one 90-day outlier should not dominate
+    best_state, best_mae, best_epoch = None, float("inf"), 0
+    for epoch in range(1, epochs + 1):
+        model.train()
+        optimizer.zero_grad()
+        loss = loss_fn(model(values, lengths), targets)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+        optimizer.step()
+        model.eval()
+        val_mae = _metrics(model, validation_examples, train_mean)["mae"]
+        if val_mae < best_mae:  # keep the best epoch on the later (temporal) validation slice, not the last one
+            best_state, best_mae, best_epoch = {k: v.detach().clone() for k, v in model.state_dict().items()}, val_mae, epoch
+    model.load_state_dict(best_state)
+    model.eval()
+    m = _metrics(model, validation_examples, train_mean)
+    torch.save({"state_dict": model.state_dict(), "architecture": "gru", "input_size": 2, "hidden_size": HIDDEN_SIZE,
+                "feature_scale": FEATURE_SCALE, "train_mean_delay": train_mean}, artifact_path)
     return {
         "artifactReference": artifact_path,
         "epochs": epochs,
-        "validationMae": mae,
-        "validationRmse": rmse,
-        "validationR2": r2,
-        "baselineMae": baseline_mae,
+        "bestEpoch": best_epoch,
+        "validationMae": m["mae"],
+        "validationRmse": m["rmse"],
+        "validationR2": m["r2"],
+        "baselineMae": m["baselineMae"],
+        # The model is only trusted for forecasts if it beats "always predict the average delay".
+        "beatsBaseline": m["mae"] < m["baselineMae"],
         "seed": seed,
     }
 
@@ -200,6 +231,6 @@ def predict_payment_delay(artifact_path: str, example: PaymentDelayExample) -> f
     model = _model_class()()
     model.load_state_dict(payload["state_dict"])
     model.eval()
-    values, _ = _tensors([example])
+    values, _, lengths = _tensors([example])
     with torch.no_grad():
-        return max(0.0, float(model(values)[0].item()))
+        return max(0.0, float(model(values, lengths)[0].item()))

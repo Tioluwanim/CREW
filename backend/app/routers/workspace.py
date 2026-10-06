@@ -11,6 +11,7 @@ from app import models, schemas
 from app.config import get_settings
 from app.db import get_db
 from app.deps import current_user, owned_project
+from app.extension.learned_forecaster import scenario_delays
 from app.extension.registry import get_agent, get_forecaster
 from app.services import events, finance, idempotency, intelligence_service, lifecycle, messaging, payments, portfolio, dl
 from app.services.serializers import change_out, deliverable_out, event_out, invoice_out, milestone_out, payment_out
@@ -335,8 +336,18 @@ def normalized(limit: int = 1000, user: models.User = Depends(current_user), db:
 @router.get("/forecast/series")
 def forecast_series(horizon_days: int = 30, user: models.User = Depends(current_user), db: Session = Depends(get_db)):
     history = normalized(5000, user, db)
-    fc = get_forecaster()
-    return fc.forecast(history, horizon_days, {"points": portfolio.forecast_points(db, user)})
+    delay = dl.estimate_payment_delay(db, user)
+    days = scenario_delays(delay["days"])
+    context = {
+        "points": portfolio.forecast_points(db, user),
+        "scenarios": {
+            "optimistic": portfolio.forecast_points(db, user, days["optimisticDays"]),
+            "expected": portfolio.forecast_points(db, user, days["expectedDays"]),
+            "pessimistic": portfolio.forecast_points(db, user, days["pessimisticDays"]),
+        },
+        "delay": {**delay, **days},
+    }
+    return get_forecaster().forecast(history, horizon_days, context)
 
 
 @router.post("/copilot/chat")

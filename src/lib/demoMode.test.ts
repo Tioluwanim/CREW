@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('demo session', () => {
   beforeEach(() => {
@@ -6,6 +6,11 @@ describe('demo session', () => {
     window.localStorage.clear();
     vi.resetModules();
     vi.unstubAllEnvs();
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
   it('is not live in mock mode (the default)', async () => {

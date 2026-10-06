@@ -8,3 +8,14 @@ const OnboardingPage = dynamic(() => import('../src/page-components/OnboardingPa
 export function OnboardingClientPage() {
   return <OnboardingPage />;
 }
+
+const SignInPage = dynamic(() => import('../src/page-components/AuthPages').then((module) => module.SignInPage), { ssr: false });
+const SignUpPage = dynamic(() => import('../src/page-components/AuthPages').then((module) => module.SignUpPage), { ssr: false });
+
+export function SignInClientPage() {
+  return <SignInPage />;
+}
+
+export function SignUpClientPage() {
+  return <SignUpPage />;
+}

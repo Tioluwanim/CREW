@@ -31,6 +31,18 @@ async function requestToken(path: string, body?: unknown): Promise<string> {
   return data.accessToken;
 }
 
+export interface RegisterInput {
+  email: string;
+  password: string;
+  ownerName: string;
+  businessName: string;
+}
+
+/** Creates the account and signs in. Craft, deposit and starting cash are filled in during onboarding. */
+export function register(input: RegisterInput): Promise<string> {
+  return requestToken('/auth/register', input);
+}
+
 export function login(email: string, password: string): Promise<string> {
   return requestToken('/auth/login', { email, password });
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { USE_MOCK_API } from '../../lib/apiConfig';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -51,6 +52,14 @@ export function FloatingNav() {
           >
             Explore the demo
           </Link>
+          {!USE_MOCK_API && (
+            <Link
+              href="/signin"
+              className="hidden rounded-full px-3.5 py-1.5 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-900/5 hover:text-ink-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900 sm:inline-block"
+            >
+              Sign in
+            </Link>
+          )}
           <Link
             href="/app"
             className="inline-flex items-center gap-1.5 rounded-full bg-ink-900 px-4 py-1.5 text-sm font-medium text-bone-50 transition-colors hover:bg-ink-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900"

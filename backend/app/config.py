@@ -36,8 +36,12 @@ class Settings:
     verve_client_id: str = field(default_factory=lambda: _env("VERVE_CLIENT_ID"))
     verve_client_secret: str = field(default_factory=lambda: _env("VERVE_CLIENT_SECRET"))
     verve_webhook_secret: str = field(default_factory=lambda: _env("VERVE_WEBHOOK_SECRET"))
-    forecaster: str = field(default_factory=lambda: _env("FORECASTER", "baseline"))
-    agent: str = field(default_factory=lambda: _env("AGENT_RUNTIME", "null"))
+    forecaster: str = field(default_factory=lambda: _env("FORECASTER", "learned"))  # learned | baseline
+    # AGENT_RUNTIME: null | groq. Unset + GROQ_API_KEY present -> groq, so adding the key is enough.
+    agent: str = field(default_factory=lambda: _env("AGENT_RUNTIME", "groq" if _env("GROQ_API_KEY") else "null"))
+    groq_api_key: str = field(default_factory=lambda: _env("GROQ_API_KEY"))
+    groq_model: str = field(default_factory=lambda: _env("GROQ_MODEL", "llama-3.3-70b-versatile"))
+    groq_timeout_seconds: float = field(default_factory=lambda: float(_env("GROQ_TIMEOUT_SECONDS", "12")))
     smtp_host: str = field(default_factory=lambda: _env("SMTP_HOST"))  # empty = console fallback (messages marked `logged`)
     smtp_port: int = field(default_factory=lambda: int(_env("SMTP_PORT", "587")))
     smtp_user: str = field(default_factory=lambda: _env("SMTP_USER"))

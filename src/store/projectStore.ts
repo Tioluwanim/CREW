@@ -31,6 +31,8 @@ interface ProjectState {
   approveInvoice: () => void;
   simulatePayment: () => void;
   reset: () => void;
+  /** Replaces the working project with one loaded from the backend (live mode). */
+  hydrate: (project: Project, paymentStatus: PaymentStatus, currentCash?: number) => void;
 
   /** Sets (or clears) which side of the "was this included or extra?"
    * question a change request has landed on. Classifying as 'included'
@@ -235,6 +237,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }),
 
   reset: () => set({ project: structuredClone(kemiProject), paymentStatus: 'pending', invoiceApproved: false, currentCash: 0 }),
+
+  hydrate: (project, paymentStatus, currentCash = 0) => set({ project, paymentStatus, invoiceApproved: false, currentCash }),
 
   derived: () => {
     const { project, currentCash, paymentStatus } = get();

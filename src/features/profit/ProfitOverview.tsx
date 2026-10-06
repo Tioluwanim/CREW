@@ -3,11 +3,12 @@
 import { useProjectStore } from '../../store/projectStore';
 import { useCopilotRoute } from '../../components/copilot/CopilotContext';
 import { Card } from '../../components/ui/primitives';
-import { kemiProfile } from '../../data/demoData';
+import { useWorkspaceStore } from '../../store/workspaceStore';
 import { formatNaira } from '../../lib/money';
 
 export function ProfitOverview() {
   useCopilotRoute('dashboard');
+  const kemiProfile = useWorkspaceStore((s) => s.profile);
   const project = useProjectStore((state) => state.project);
   const derived = useProjectStore((state) => state.derived)();
   const costs = project.costs.reduce((sum, cost) => sum + cost.amount, 0);
