@@ -2,6 +2,15 @@
 
 Facts below were read from the linked pages on 2026-10-06. Where a page did not say, this file says so. Re-check before you rely on a date or a requirement.
 
+## 0. Make "Open workspace" start at sign-up
+
+The app shows the built-in demo whenever it is not pointed at a backend. To get sign-up, sign-in and onboarding:
+1. Host the API (`backend/`, FastAPI) and set its `CORS_ORIGINS` to your frontend's URL.
+2. On the frontend host set `NEXT_PUBLIC_API_BASE_URL=https://<your-api>/api` (and leave `NEXT_PUBLIC_USE_MOCK_API` unset or `false`).
+3. Rebuild and redeploy the frontend. `NEXT_PUBLIC_*` values are baked in at build time, so changing them without a rebuild does nothing.
+Locally: run the API on port 8000 and set `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api` in `.env.local`, then restart `next dev`.
+"Explore the demo" keeps using demo data either way.
+
 ## 1. Getting keys
 
 ### Ecobank (Ecobank Developer Portal)

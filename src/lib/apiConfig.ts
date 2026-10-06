@@ -7,6 +7,9 @@
 
 const env = typeof process !== 'undefined' ? process.env : {};
 
-export const USE_MOCK_API = env.NEXT_PUBLIC_USE_MOCK_API !== 'false';
+// An explicit NEXT_PUBLIC_USE_MOCK_API always wins. When it is left unset but a backend URL is
+// configured, the app runs live (sign in / onboarding), so one variable is enough to leave the demo.
+const flag = env.NEXT_PUBLIC_USE_MOCK_API;
+export const USE_MOCK_API = flag === 'true' ? true : flag === 'false' ? false : !env.NEXT_PUBLIC_API_BASE_URL;
 
 export const API_BASE_URL = USE_MOCK_API ? '/api' : env.NEXT_PUBLIC_API_BASE_URL || '/api';
