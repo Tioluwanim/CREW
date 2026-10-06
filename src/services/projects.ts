@@ -7,17 +7,19 @@ type Project = components['schemas']['Project'];
 // changing the base URL / fetch implementation here, not the UI.
 
 import { apiFetch, apiJson, newIdempotencyKey } from '../lib/apiClient';
+import type { Project as AppProject } from '../types';
+import { adaptProject } from './adapt';
 
-export async function getProjects(): Promise<Project[]> {
+export async function getProjects(): Promise<AppProject[]> {
   const res = await apiFetch(`/projects`);
   if (!res.ok) throw new Error('Failed to load projects');
-  return res.json();
+  return ((await res.json()) as unknown[]).map(adaptProject);
 }
 
-export async function getProject(id: string): Promise<Project> {
+export async function getProject(id: string): Promise<AppProject> {
   const res = await apiFetch(`/projects/${id}`);
   if (!res.ok) throw new Error('Failed to load project');
-  return res.json();
+  return adaptProject(await res.json());
 }
 
 export interface CreateProjectInput {

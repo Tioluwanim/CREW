@@ -1,7 +1,7 @@
 'use client';
 
 import { Check } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useProjectStore } from '../store/projectStore';
@@ -24,6 +24,8 @@ import type { ChangeRequest, Milestone, MilestoneStatus, Project, PaymentStatus 
 import { useLiveBackend } from '../lib/demoMode';
 import { BackendWorkspacePanel } from '../features/projects/BackendWorkspacePanel';
 import { VirtualAccountCard } from '../features/payments/VirtualAccountCard';
+import { useProjectActions } from '../features/projects/useProjectActions';
+import { apiJson } from '../lib/apiClient';
 
 const TABS = ['Overview', 'Scope', 'Changes', 'Payments', 'Costs & Profit', 'Timeline'] as const;
 type Tab = (typeof TABS)[number];
@@ -45,20 +47,20 @@ export function ProjectDetailPage() {
   const [tab, setTab] = useState<Tab>('Overview');
 
   const heroProject = useProjectStore((s) => s.project);
-  const setDepositPct = useProjectStore((s) => s.setDepositPct);
-  const updateCost = useProjectStore((s) => s.updateCost);
+  const actions = useProjectActions();
+  const { setDepositPct, updateCost, simulatePayment, approveInvoice, classifyChangeRequest, approveChangeRequest, advanceMilestone } = actions;
   const heroPaymentStatus = useProjectStore((s) => s.paymentStatus);
-  const simulatePayment = useProjectStore((s) => s.simulatePayment);
   const invoiceApproved = useProjectStore((s) => s.invoiceApproved);
-  const approveInvoice = useProjectStore((s) => s.approveInvoice);
-  const classifyChangeRequest = useProjectStore((s) => s.classifyChangeRequest);
-  const approveChangeRequest = useProjectStore((s) => s.approveChangeRequest);
-  const advanceMilestone = useProjectStore((s) => s.advanceMilestone);
   const heroDerived = useProjectStore((s) => s.derived)();
 
   const otherProjects = useWorkspaceStore((s) => s.otherProjects);
   const liveData = useWorkspaceStore((s) => s.source === 'live');
+  const promote = useWorkspaceStore((s) => s.promote);
   const isHero = !id || id === heroProject.id;
+  // Live accounts can edit any of their projects: opening one makes it the working project.
+  useEffect(() => {
+    if (liveData && id && id !== heroProject.id) promote(id);
+  }, [liveData, id, heroProject.id, promote]);
   const staticProject = isHero ? null : otherProjects.find((p) => p.id === id);
 
   if (!isHero && !staticProject) {
@@ -97,6 +99,12 @@ export function ProjectDetailPage() {
 
   return (
     <div>
+      {actions.error && (
+        <div role="alert" className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-thread-600/30 bg-thread-600/5 p-3 text-sm text-thread-600">
+          <span>{actions.error}</span>
+          <button type="button" onClick={actions.clearError} className="text-xs underline">Dismiss</button>
+        </div>
+      )}
       {liveBackend && <div className="mb-6 space-y-6"><BackendWorkspacePanel projectId={project.id} projectName={project.name} /><VirtualAccountCard projectId={project.id} /></div>}
       <header className="mb-6">
         <div className="flex flex-wrap items-center gap-2">
@@ -104,7 +112,7 @@ export function ProjectDetailPage() {
           <Pill tone={paymentStatus === 'verified' ? 'verified' : 'default'}>
             {paymentStatus === 'verified' ? 'Completed' : 'In progress'}
           </Pill>
-          {!isHero && <Pill>Read-only in this demo</Pill>}
+          {!isHero && !liveData && <Pill>Read-only in this demo</Pill>}
         </div>
         <p className="mt-1 text-sm text-ink-500">
           {project.clientName} · {project.craft}
@@ -159,7 +167,7 @@ export function ProjectDetailPage() {
           <Card className="p-5">
             <h2 className="mb-4 text-sm font-medium text-ink-700">Deposit</h2>
             {isHero ? (
-              <DepositSlider value={project.depositPct} onChange={setDepositPct} recommended={recommended} />
+              <DepositSlider value={project.depositPct} onChange={setDepositPct} onCommit={actions.commitDeposit} recommended={recommended} />
             ) : (
               <div className="flex items-center justify-between rounded-lg border border-ink-900/10 bg-bone-100/50 p-3">
                 <span className="text-sm text-ink-500">Deposit</span>
@@ -202,6 +210,7 @@ export function ProjectDetailPage() {
           isHero={isHero}
           onClassify={classifyChangeRequest}
           onApprove={approveChangeRequest}
+          onPropose={liveBackend ? actions.proposeChange : undefined}
         />
       )}
 
@@ -231,6 +240,7 @@ export function ProjectDetailPage() {
                       type="number"
                       value={cost.amount}
                       onChange={(e) => updateCost(cost.id, Number(e.target.value))}
+                      onBlur={(e) => actions.commitCost(cost.id, Number(e.target.value))}
                       className="num w-28 rounded-md border border-ink-900/15 bg-white px-2 py-1 text-right text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ink-900"
                       aria-label={`${cost.label} amount`}
                     />
@@ -355,24 +365,56 @@ function ChangesTab({
   isHero,
   onClassify,
   onApprove,
+  onPropose,
 }: {
   project: Project;
   isHero: boolean;
   onClassify: (id: string, classification: 'included' | 'extra') => void;
   onApprove: (id: string, side: 'creator' | 'client') => void;
+  /** Live mode only: saves a priced change request to the backend; the client accepts it on their link. */
+  onPropose?: (title: string, amount: number) => Promise<unknown> | void;
 }) {
   const changeRequests = project.changeRequests ?? [];
 
-  if (changeRequests.length === 0) {
-    return <EmptyState message="No change requests on this project." />;
-  }
-
   return (
     <div className="space-y-4">
+      {onPropose && <ProposeChangeForm onPropose={onPropose} />}
+      {changeRequests.length === 0 && <EmptyState message="No change requests on this project." />}
       {changeRequests.map((cr) => (
         <ChangeRequestCard key={cr.id} changeRequest={cr} isHero={isHero} onClassify={onClassify} onApprove={onApprove} />
       ))}
     </div>
+  );
+}
+
+function ProposeChangeForm({ onPropose }: { onPropose: (title: string, amount: number) => Promise<unknown> | void }) {
+  const [title, setTitle] = useState('');
+  const [amount, setAmount] = useState('');
+  const valid = title.trim().length > 0 && Number(amount) >= 0 && amount !== '';
+  return (
+    <Card className="p-5">
+      <h2 className="mb-3 text-sm font-medium text-ink-700">Propose a change</h2>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex-1 text-xs text-ink-500">
+          What changes
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className="mt-1 w-full rounded-md border border-ink-900/15 bg-white px-2 py-1.5 text-sm text-ink-900" />
+        </label>
+        <label className="w-32 text-xs text-ink-500">
+          Extra cost (₦)
+          <input type="number" min={0} value={amount} onChange={(e) => setAmount(e.target.value)} className="num mt-1 w-full rounded-md border border-ink-900/15 bg-white px-2 py-1.5 text-right text-sm text-ink-900" />
+        </label>
+        <Button
+          disabled={!valid}
+          onClick={async () => {
+            await onPropose(title.trim(), Number(amount));
+            setTitle('');
+            setAmount('');
+          }}
+        >
+          Send to client
+        </Button>
+      </div>
+    </Card>
   );
 }
 
@@ -504,14 +546,7 @@ function PaymentsTab({
       {isHero && invoiceApproved && (
         <Card className="flex items-center justify-between p-4">
           <span className="text-sm text-ink-700">No-signup client link, sent to {project.clientName}</span>
-          <a
-            href={`/pay/${project.id}`}
-            target="_blank"
-            rel="noreferrer"
-            className="shrink-0 text-sm font-medium text-ink-900 underline underline-offset-4 hover:text-ink-700"
-          >
-            View client link ↗
-          </a>
+          <ClientLink projectId={project.id} />
         </Card>
       )}
 
@@ -589,5 +624,35 @@ function Row({ label, value }: { label: string; value: string }) {
       <span className="text-ink-500">{label}</span>
       <span className="num font-medium text-ink-900">{value}</span>
     </div>
+  );
+}
+
+/** Demo: the built-in demo client page. Live: opens the project's real no-signup share link. */
+function ClientLink({ projectId }: { projectId: string }) {
+  const live = useLiveBackend();
+  const [failed, setFailed] = useState(false);
+  const cls = 'shrink-0 text-sm font-medium text-ink-900 underline underline-offset-4 hover:text-ink-700';
+  if (!live) {
+    return (
+      <a href={`/pay/${projectId}`} target="_blank" rel="noreferrer" className={cls}>
+        View client link ↗
+      </a>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className={cls}
+      onClick={async () => {
+        try {
+          const link = await apiJson<{ token: string }>(`/projects/${projectId}/share-link`, { method: 'POST' });
+          window.open(`/c/${link.token}`, '_blank', 'noopener');
+        } catch {
+          setFailed(true);
+        }
+      }}
+    >
+      {failed ? 'Could not open the link — retry' : 'View client link ↗'}
+    </button>
   );
 }

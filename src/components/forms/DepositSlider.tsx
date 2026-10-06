@@ -9,9 +9,11 @@ interface DepositSliderProps {
   max?: number;
   step?: number;
   recommended?: number | null;
+  /** Fires once when the user lets go of the slider (pointer up / key up / blur): the moment to save. */
+  onCommit?: (value: number) => void;
 }
 
-export function DepositSlider({ value, onChange, min = 0, max = 100, step = 5, recommended = null }: DepositSliderProps) {
+export function DepositSlider({ value, onChange, min = 0, max = 100, step = 5, recommended = null, onCommit }: DepositSliderProps) {
   const pct = ((value - min) / (max - min)) * 100;
 
   return (
@@ -41,6 +43,8 @@ export function DepositSlider({ value, onChange, min = 0, max = 100, step = 5, r
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
+          onPointerUp={(e) => onCommit?.(Number((e.target as HTMLInputElement).value))}
+          onKeyUp={(e) => onCommit?.(Number((e.target as HTMLInputElement).value))}
           className="absolute inset-x-0 top-0 h-5 w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:bg-thread-600 [&::-webkit-slider-thumb]:shadow-md [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:bg-thread-600"
         />
       </div>

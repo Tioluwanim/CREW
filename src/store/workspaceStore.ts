@@ -20,6 +20,8 @@ interface WorkspaceState {
   hasProjects: boolean;
   hydrateLive: (data: { profile: CreativeProfile; projects: Project[]; clients: Client[] }) => void;
   resetToDemo: () => void;
+  /** Live mode: makes `id` the editable working project (the previous one moves into otherProjects). */
+  promote: (id: string) => void;
 }
 
 const paymentStatusOf = (project: Project): PaymentStatus => (project.status === 'completed' ? 'verified' : 'pending');
@@ -46,6 +48,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set) => ({
       otherProjects: projects.filter((p) => p.id !== working?.id),
       hasProjects: projects.length > 0,
     });
+  },
+
+  promote: (id) => {
+    const { otherProjects } = useWorkspaceStore.getState();
+    const next = otherProjects.find((p) => p.id === id);
+    if (!next) return;
+    const current = useProjectStore.getState().project;
+    useProjectStore.getState().hydrate(structuredClone(next), paymentStatusOf(next));
+    set({ otherProjects: [current, ...otherProjects.filter((p) => p.id !== id)] });
   },
 
   resetToDemo: () => {

@@ -111,6 +111,8 @@ export interface Project {
   scope?: ScopeItem[];
   changeRequests?: ChangeRequest[];
   milestones?: Milestone[];
+  /** Backend lifecycle stage (brief → agreed → funded → in_progress → in_review → approved → released → closed). Absent in demo data. */
+  stage?: string;
 }
 
 export interface ActivityEvent {
