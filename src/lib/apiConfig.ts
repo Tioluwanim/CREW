@@ -5,11 +5,15 @@
 //
 // Default is mock-on, since that's what this repo ships runnable today.
 
-const env = typeof process !== 'undefined' ? process.env : {};
+// IMPORTANT: Next.js only bakes NEXT_PUBLIC_* values into the browser bundle when they are written
+// literally as `process.env.NEXT_PUBLIC_NAME`. Reading them through an alias (`const env = process.env`)
+// works on the server but leaves them undefined in the browser, silently forcing the demo.
+const rawFlag = process.env.NEXT_PUBLIC_USE_MOCK_API;
+const rawBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 // An explicit NEXT_PUBLIC_USE_MOCK_API always wins. When it is left unset but a backend URL is
 // configured, the app runs live (sign in / onboarding), so one variable is enough to leave the demo.
-const flag = env.NEXT_PUBLIC_USE_MOCK_API;
-export const USE_MOCK_API = flag === 'true' ? true : flag === 'false' ? false : !env.NEXT_PUBLIC_API_BASE_URL;
+const flag = rawFlag;
+export const USE_MOCK_API = flag === 'true' ? true : flag === 'false' ? false : !rawBaseUrl;
 
-export const API_BASE_URL = USE_MOCK_API ? '/api' : env.NEXT_PUBLIC_API_BASE_URL || '/api';
+export const API_BASE_URL = USE_MOCK_API ? '/api' : rawBaseUrl || '/api';
