@@ -11,6 +11,7 @@ import { isLiveBackend } from '../lib/demoMode';
 import { newIdempotencyKey } from '../lib/apiClient';
 import { createProject } from '../services/projects';
 import { loadLiveWorkspace } from '../services/workspace';
+import { useWorkspaceStore } from '../store/workspaceStore';
 import type { ProjectCost } from '../types';
 
 const STEPS = ['Details', 'Client', 'Price', 'Deposit', 'Costs', 'Review'] as const;
@@ -36,7 +37,9 @@ const initialDraft: Draft = {
 
 export function CreateProjectPage() {
   const [stepIndex, setStepIndex] = useState(0);
-  const [draft, setDraft] = useState<Draft>(initialDraft);
+  // Live accounts start from the deposit they said they usually ask for during onboarding.
+  const usualDeposit = useWorkspaceStore((st) => (st.source === 'live' ? st.profile.typicalDepositPct : 0));
+  const [draft, setDraft] = useState<Draft>(() => ({ ...initialDraft, depositPct: usualDeposit > 0 && usualDeposit <= 100 ? usualDeposit : initialDraft.depositPct }));
   const [created, setCreated] = useState(false);
   const [createdId, setCreatedId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

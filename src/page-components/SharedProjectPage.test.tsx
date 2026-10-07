@@ -18,7 +18,7 @@ describe('SharedProjectPage', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it('shows the project and lets the client accept a change request', async () => {
-    fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+    fetchMock.mockImplementation(async (url: string) => {
       if (url.endsWith('/change-requests/c1/accept')) return res({ id: 'c1', status: 'accepted' });
       return res(view());
     });

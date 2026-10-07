@@ -32,17 +32,26 @@ export function listInvoices(projectId: string): Promise<BackendInvoice[]> {
 }
 
 /** Creates the deposit invoice (once) and sends it. Safe to retry: the key de-duplicates the create. */
-export async function approveAndSendInvoice(projectId: string, key: string = newIdempotencyKey()): Promise<BackendInvoice> {
-  const existing = (await listInvoices(projectId)).find((i) => i.kind === 'deposit' && i.status !== 'paid');
+export async function approveAndSendInvoice(projectId: string, key: string = newIdempotencyKey(), kind: 'deposit' | 'balance' = 'deposit'): Promise<BackendInvoice> {
+  const existing = (await listInvoices(projectId)).find((i) => i.kind === kind && i.status !== 'paid');
   const invoice =
     existing ??
-    (await apiJson<BackendInvoice>(`/projects/${projectId}/invoices`, { method: 'POST', idempotencyKey: key, body: { kind: 'deposit' } }));
+    (await apiJson<BackendInvoice>(`/projects/${projectId}/invoices`, { method: 'POST', idempotencyKey: key, body: { kind } }));
   if (invoice.status === 'sent') return invoice;
   return apiJson<BackendInvoice>(`/invoices/${invoice.id}/send`, { method: 'POST' });
 }
 
 export function advanceStage(projectId: string, to: 'agreed' | 'in_progress' | 'in_review' | 'closed'): Promise<unknown> {
   return apiJson(`/projects/${projectId}/transition`, { method: 'POST', body: { to } });
+}
+
+export function addDeliverable(projectId: string, input: { title: string; description?: string }): Promise<unknown> {
+  return apiJson(`/projects/${projectId}/deliverables`, { method: 'POST', body: input });
+}
+
+export function markDelivered(projectId: string, deliverableId: string, evidenceUrl?: string): Promise<unknown> {
+  const q = evidenceUrl ? `?evidence_url=${encodeURIComponent(evidenceUrl)}` : '';
+  return apiJson(`/projects/${projectId}/deliverables/${deliverableId}/deliver${q}`, { method: 'POST' });
 }
 
 export function releaseFunds(projectId: string): Promise<unknown> {

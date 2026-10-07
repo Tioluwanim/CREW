@@ -185,7 +185,7 @@ export function SharedProjectPage({ token }: { token: string }) {
                   <Line label="Amount" value={formatNaira(payment.amount)} />
                 </div>
               )}
-              {payment.instructions && <p className="text-ink-500">{payment.instructions}</p>}
+              {payment.instructions && payment.instructions !== payment.note && <p className="text-ink-500">{payment.instructions}</p>}
               {payment.checkoutUrl && (
                 <a href={payment.checkoutUrl} target="_blank" rel="noreferrer" className="block text-center font-medium underline underline-offset-4">
                   Open secure checkout ↗

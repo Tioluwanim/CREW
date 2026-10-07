@@ -25,6 +25,7 @@ import { useLiveBackend } from '../lib/demoMode';
 import { BackendWorkspacePanel } from '../features/projects/BackendWorkspacePanel';
 import { VirtualAccountCard } from '../features/payments/VirtualAccountCard';
 import { useProjectActions } from '../features/projects/useProjectActions';
+import { LiveWorkflowCard } from '../features/projects/LiveWorkflowCard';
 import { apiJson } from '../lib/apiClient';
 
 const TABS = ['Overview', 'Scope', 'Changes', 'Payments', 'Costs & Profit', 'Timeline'] as const;
@@ -159,10 +160,13 @@ export function ProjectDetailPage() {
 
       {tab === 'Overview' && (
         <div className="space-y-6">
-          <Card className="p-5">
-            <div className="mb-1 text-xs font-medium uppercase tracking-wide text-gold-500">Next action</div>
-            <p className="text-sm text-ink-900">{nextAction}</p>
-          </Card>
+          {liveBackend && isHero && <LiveWorkflowCard project={project} run={actions.runRemote} />}
+          {!(liveBackend && isHero) && (
+            <Card className="p-5">
+              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-gold-500">Next action</div>
+              <p className="text-sm text-ink-900">{nextAction}</p>
+            </Card>
+          )}
 
           <Card className="p-5">
             <h2 className="mb-4 text-sm font-medium text-ink-700">Deposit</h2>
@@ -223,7 +227,7 @@ export function ProjectDetailPage() {
           derived={derived}
           onApproveInvoice={approveInvoice}
           onSimulatePayment={simulatePayment}
-          onAdvanceMilestone={advanceMilestone}
+          onAdvanceMilestone={liveBackend ? undefined : advanceMilestone}
         />
       )}
 
@@ -507,7 +511,8 @@ function PaymentsTab({
   derived: { depositAmount: number };
   onApproveInvoice: () => void;
   onSimulatePayment: () => void;
-  onAdvanceMilestone: (id: string) => void;
+  /** Absent in live mode: milestone state follows real payments and the project's stage. */
+  onAdvanceMilestone?: (id: string) => void;
 }) {
   if (!project.milestones || project.milestones.length === 0) {
     // Older demo projects don't model milestones — fall back to the
@@ -556,13 +561,17 @@ function PaymentsTab({
           milestone={milestone}
           isHero={isHero}
           invoiceApproved={invoiceApproved}
-          onAdvance={() => {
-            // "Funded" is the moment money actually arrives — fire the
-            // payment-verified side effect on the agreed -> funded step,
-            // not one step later.
-            if (milestone.id === 'ms-balance' && milestone.status === 'agreed') onSimulatePayment();
-            onAdvanceMilestone(milestone.id);
-          }}
+          onAdvance={
+            onAdvanceMilestone
+              ? () => {
+                  // "Funded" is the moment money actually arrives — fire the
+                  // payment-verified side effect on the agreed -> funded step,
+                  // not one step later.
+                  if (milestone.id === 'ms-balance' && milestone.status === 'agreed') onSimulatePayment();
+                  onAdvanceMilestone(milestone.id);
+                }
+              : undefined
+          }
         />
       ))}
     </div>
@@ -578,7 +587,8 @@ function MilestoneCard({
   milestone: Milestone;
   isHero: boolean;
   invoiceApproved: boolean;
-  onAdvance: () => void;
+  /** Absent in live mode: the status follows real payments, so there is nothing to click. */
+  onAdvance?: () => void;
 }) {
   const currentIndex = MILESTONE_STEPS.indexOf(milestone.status);
   const isReleased = milestone.status === 'released';
@@ -607,7 +617,7 @@ function MilestoneCard({
         <p className="mb-3 text-xs text-ink-500">Payment received, held until you approve delivery.</p>
       )}
 
-      {isHero && !isReleased && (
+      {isHero && !isReleased && onAdvance && (
         <Button variant="secondary" onClick={onAdvance} disabled={blocked}>
           {blocked ? 'Send invoice first' : `Advance to ${MILESTONE_STEP_LABEL[MILESTONE_STEPS[currentIndex + 1]]}`}
         </Button>

@@ -113,6 +113,17 @@ export interface Project {
   milestones?: Milestone[];
   /** Backend lifecycle stage (brief → agreed → funded → in_progress → in_review → approved → released → closed). Absent in demo data. */
   stage?: string;
+  /** Backend deliverables (live accounts). `scope` is derived from these for display. */
+  deliverables?: Deliverable[];
+}
+
+export interface Deliverable {
+  id: string;
+  title: string;
+  description?: string;
+  status: 'pending' | 'delivered' | 'approved' | 'revision_requested' | string;
+  evidenceUrl?: string | null;
+  revisions?: number;
 }
 
 export interface ActivityEvent {

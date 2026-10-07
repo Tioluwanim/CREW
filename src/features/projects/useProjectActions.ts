@@ -49,6 +49,8 @@ export function useProjectActions() {
     error,
     busy,
     clearError: () => setError(null),
+    /** Runs a backend call for the working project, then re-reads it (live mode only; a no-op in the demo). */
+    runRemote: (remote: (projectId: string) => Promise<unknown>) => run(() => undefined, remote),
     setDepositPct: (pct: number) => store.setDepositPct(pct), // local while dragging
     /** Call when the slider is released (live mode saves; demo does nothing extra). */
     commitDeposit: (pct: number) => run(() => store.setDepositPct(pct), (id) => api.saveDeposit(id, pct)),
