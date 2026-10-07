@@ -41,3 +41,7 @@ export const startPayment = (token: string, input: { invoiceId?: string; method:
   apiJson<SharedPayment>(`${base(token)}/pay`, { method: 'POST', idempotencyKey: key, body: input });
 export const verifyPayment = (token: string, reference: string) =>
   apiJson<{ paymentReference: string; status: string }>(`${base(token)}/pay/${encodeURIComponent(reference)}/verify`, { method: 'POST' });
+
+export interface TransferDetails { accountNumber: string; accountName: string; bankName: string; outstanding: number }
+/** Bank-transfer details for this project. Transfers to the account are matched to the project automatically. */
+export const getTransferDetails = (token: string) => apiJson<TransferDetails>(`${base(token)}/virtual-account`, { method: 'POST' });

@@ -28,17 +28,27 @@ describe('SharedProjectPage', () => {
     await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u) === '/api/share/tok/change-requests/c1/accept')).toBe(true));
   });
 
-  it('starts a payment with the invoice and shows bank-transfer details', async () => {
+  it('shows bank-transfer details for the project account', async () => {
     fetchMock.mockImplementation(async (url: string) => {
-      if (url.endsWith('/pay')) return res({ reference: 'r1', amount: 40000, provider: 'sandbox', method: 'virtual_account', checkoutUrl: null, instructions: null, note: 'Sandbox - no real money moves.', virtualAccount: { accountNumber: '0123456789', accountName: 'CREW / Brand shoot', bankName: 'Sandbox Bank' } }, 201);
+      if (url.endsWith('/virtual-account')) return res({ accountNumber: '0123456789', accountName: 'CREW / Brand shoot', bankName: 'Sandbox Bank', outstanding: 100000 }, 201);
       return res(view());
     });
     render(<SharedProjectPage token="tok" />);
     await userEvent.click(await screen.findByRole('button', { name: 'Pay by bank transfer' }));
     expect(await screen.findByText('0123456789')).toBeTruthy();
-    expect(screen.getByText(/no real money moves/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Refresh my balance' })).toBeTruthy();
+  });
+
+  it('starts a card or bank checkout with the invoice id', async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.endsWith('/pay')) return res({ reference: 'r1', amount: 40000, provider: 'sandbox', method: 'checkout', checkoutUrl: 'https://pay.example/c', instructions: null, note: 'Sandbox - no real money moves.', virtualAccount: null }, 201);
+      return res(view());
+    });
+    render(<SharedProjectPage token="tok" />);
+    await userEvent.click(await screen.findByRole('button', { name: /by card or bank/ }));
+    expect(await screen.findByText(/no real money moves/i)).toBeTruthy();
     const payCall = fetchMock.mock.calls.find(([u]) => String(u).endsWith('/pay'))!;
-    expect(JSON.parse((payCall[1] as RequestInit).body as string)).toEqual({ invoiceId: 'i1', method: 'virtual_account' });
+    expect(JSON.parse((payCall[1] as RequestInit).body as string)).toEqual({ invoiceId: 'i1', method: 'checkout' });
   });
 
   it('shows the backend message for a dead link', async () => {

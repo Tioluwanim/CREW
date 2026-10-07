@@ -5,7 +5,7 @@ import { Card, Button, Pill, StatLabel } from '../components/ui/primitives';
 import { EmptyState } from '../components/ui/states';
 import { formatNaira } from '../lib/money';
 import * as share from '../services/share';
-import type { PayMethod, SharedPayment, SharedView } from '../services/share';
+import type { PayMethod, SharedPayment, SharedView, TransferDetails } from '../services/share';
 
 /**
  * The real no-signup client page, backed by the share-link API. A creator sends
@@ -19,6 +19,7 @@ export function SharedProjectPage({ token }: { token: string }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [payment, setPayment] = useState<SharedPayment | null>(null);
+  const [transfer, setTransfer] = useState<TransferDetails | null>(null);
   const [paidNote, setPaidNote] = useState<string | null>(null);
   const [revisionFor, setRevisionFor] = useState<string | null>(null);
   const [note, setNote] = useState('');
@@ -63,6 +64,13 @@ export function SharedProjectPage({ token }: { token: string }) {
   const stageLabel = project.stage.replace('_', ' ');
   const canAgree = project.stage === 'brief';
   const inReview = project.stage === 'in_review';
+
+  async function showTransferDetails() {
+    await act(async () => {
+      setTransfer(await share.getTransferDetails(token));
+      setPaidNote(null);
+    });
+  }
 
   async function pay(method: PayMethod) {
     await act(async () => {
@@ -174,6 +182,18 @@ export function SharedProjectPage({ token }: { token: string }) {
 
           {paidNote && <p className="mb-3 rounded-lg border border-verified-600/20 bg-verified-100/50 p-3 text-center text-sm text-verified-600">{paidNote}</p>}
 
+          {transfer && !payment && (
+            <div className="mb-3 space-y-2 rounded-lg border border-ink-900/10 bg-bone-100/60 p-3 text-sm">
+              <Line label="Bank" value={transfer.bankName} />
+              <Line label="Account number" value={transfer.accountNumber} />
+              <Line label="Account name" value={transfer.accountName} />
+              <p className="text-xs text-ink-500">Send any amount up to {formatNaira(transfer.outstanding)}. Transfers to this account are matched to this project automatically; press refresh after you have paid.</p>
+              <Button variant="secondary" className="w-full justify-center" disabled={busy} onClick={() => act(async () => undefined)}>
+                Refresh my balance
+              </Button>
+            </div>
+          )}
+
           {payment ? (
             <div className="space-y-3 text-sm">
               <p className="text-ink-700">{payment.note}</p>
@@ -200,7 +220,7 @@ export function SharedProjectPage({ token }: { token: string }) {
               <Button className="w-full justify-center" disabled={busy} onClick={() => pay('checkout')}>
                 Pay {formatNaira(payable.amount)} by card or bank
               </Button>
-              <Button variant="secondary" className="w-full justify-center" disabled={busy} onClick={() => pay('virtual_account')}>
+              <Button variant="secondary" className="w-full justify-center" disabled={busy} onClick={showTransferDetails}>
                 Pay by bank transfer
               </Button>
             </div>
