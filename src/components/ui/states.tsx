@@ -2,10 +2,11 @@ import type { ReactNode } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button, Card } from './primitives';
 
-export function EmptyState({ message }: { message: string }) {
+export function EmptyState({ message, action }: { message: string; action?: ReactNode }) {
   return (
-    <Card className="flex flex-col items-center gap-1 p-10 text-center">
-      <p className="text-sm text-ink-500">{message}</p>
+    <Card className="flex flex-col items-center gap-3 p-10 text-center">
+      <p className="max-w-sm text-sm text-ink-500">{message}</p>
+      {action}
     </Card>
   );
 }

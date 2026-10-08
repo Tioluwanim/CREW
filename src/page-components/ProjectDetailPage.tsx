@@ -1,5 +1,6 @@
 'use client';
 
+import { StageTracker, CREATOR_STEPS, creatorStepIndex } from '../components/ui/StageTracker';
 import { Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -110,14 +111,19 @@ export function ProjectDetailPage() {
       <header className="mb-6">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="font-display text-3xl text-ink-900">{project.name}</h1>
-          <Pill tone={paymentStatus === 'verified' ? 'verified' : 'default'}>
-            {paymentStatus === 'verified' ? 'Completed' : 'In progress'}
+          <Pill tone={project.stage ? (project.stage === 'closed' || project.stage === 'released' ? 'verified' : 'default') : paymentStatus === 'verified' ? 'verified' : 'default'}>
+            {project.stage ? (project.stage === 'closed' ? 'Closed' : CREATOR_STEPS[creatorStepIndex(project.stage)] ?? 'Brief') : paymentStatus === 'verified' ? 'Completed' : 'In progress'}
           </Pill>
           {!isHero && !liveData && <Pill>Read-only in this demo</Pill>}
         </div>
         <p className="mt-1 text-sm text-ink-500">
           {project.clientName} · {project.craft}
         </p>
+        {project.stage && (
+          <Card className="mt-4 p-4 sm:p-5">
+            <StageTracker steps={CREATOR_STEPS} current={creatorStepIndex(project.stage)} label="Project progress" />
+          </Card>
+        )}
       </header>
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">

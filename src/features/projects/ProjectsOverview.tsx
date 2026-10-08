@@ -5,6 +5,7 @@ import { useCopilotRoute } from '../../components/copilot/CopilotContext';
 import { Button, Card, Pill } from '../../components/ui/primitives';
 import { EmptyState } from '../../components/ui/states';
 import { formatNaira } from '../../lib/money';
+import { CREATOR_STEPS, creatorStepIndex } from '../../components/ui/StageTracker';
 import { PROJECT_FILTERS, useProjectsModel, type ProjectRowModel } from './useProjectsModel';
 
 export function ProjectsOverview() {
@@ -28,10 +29,20 @@ export function ProjectsOverview() {
           </button>
         ))}
       </div>
-      {model.rows.length === 0 ? <EmptyState message="Your next project belongs here." /> : <div className="space-y-3">{model.rows.map((row) => <ProjectRow key={row.project.id} row={row} statusLabel={model.statusLabel[row.status]} />)}</div>}
+      {model.rows.length === 0 ? <EmptyState message={model.filter === 'All' ? 'No projects yet. Start one to agree scope, take a deposit and track what you are owed.' : `No ${model.filter.toLowerCase()} projects right now.`} action={model.filter === 'All' ? <Link href="/app/projects/new"><Button>Create your first project</Button></Link> : undefined} /> : <div className="space-y-3">{model.rows.map((row) => <ProjectRow key={row.project.id} row={row} statusLabel={model.statusLabel[row.status]} />)}</div>}
     </div>
   );
 }
+
+const STAGE_HINT: Record<string, string> = {
+  brief: 'add what you will deliver and send the client link',
+  agreed: 'waiting for the deposit',
+  funded: 'deposit received, start the work',
+  in_progress: 'mark items delivered as you finish',
+  in_review: 'waiting for the client',
+  approved: 'send the balance invoice and release funds',
+  released: 'paid out',
+};
 
 function ProjectRow({ row, statusLabel }: { row: ProjectRowModel; statusLabel: string }) {
   return (
@@ -41,6 +52,12 @@ function ProjectRow({ row, statusLabel }: { row: ProjectRowModel; statusLabel: s
         <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
           <Field label="Revenue" value={formatNaira(row.project.revenue)} /><Field label="Profit" value={formatNaira(row.profit)} /><Field label="Margin" value={`${row.margin.toFixed(1)}%`} /><Field label="Deposit" value={`${row.project.depositPct}%`} />
         </div>
+        {row.project.stage && (
+          <p className="mt-3 border-t border-ink-900/10 pt-3 text-xs text-ink-500">
+            <span className="font-medium text-ink-700">{CREATOR_STEPS[creatorStepIndex(row.project.stage)] ?? 'Closed'}</span>
+            {STAGE_HINT[row.project.stage] ? ` · ${STAGE_HINT[row.project.stage]}` : ''}
+          </p>
+        )}
       </Card>
     </Link>
   );
